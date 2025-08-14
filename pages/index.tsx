@@ -45,6 +45,13 @@ export default function Home() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [modal, setModal] = useState<CreationItem | null>(null)
 
+  const formatKST = (s: string) =>
+    new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).format(new Date(s))
+
   useEffect(() => {
     setOpenaiKey(sessionStorage.getItem('OPENAI_KEY') || '')
     setPiapiKey(sessionStorage.getItem('PIAPI_KEY') || '')
@@ -708,7 +715,7 @@ export default function Home() {
               {reqOpenai.map(item => (
                 <li key={`o-${item.id}`} className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3">
                   <div className="flex justify-between">
-                    <span className="text-neutral-600 dark:text-neutral-300">{new Date(item.created_at).toLocaleString()}</span>
+                    <span className="text-neutral-600 dark:text-neutral-300">{formatKST(item.created_at)}</span>
                     <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800">{item.status}</span>
                   </div>
                   <div className="mt-1 truncate text-neutral-700 dark:text-neutral-200">{item.endpoint}</div>
@@ -739,7 +746,7 @@ export default function Home() {
               {reqHailuo.map(item => (
                 <li key={`h-${item.id}`} className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3">
                   <div className="flex justify-between">
-                    <span className="text-neutral-600 dark:text-neutral-300">{new Date(item.created_at).toLocaleString()}</span>
+                    <span className="text-neutral-600 dark:text-neutral-300">{formatKST(item.created_at)}</span>
                     <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800">{item.status}</span>
                   </div>
                   <div className="mt-1 truncate text-neutral-700 dark:text-neutral-200">{item.task_id || '-'}</div>
