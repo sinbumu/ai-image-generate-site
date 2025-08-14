@@ -78,12 +78,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           console.info('[openai_proxy_response]', JSON.stringify({ status: proxyRes.statusCode, preview }))
         } catch {}
 
-        // Pass-through response as-is (keep compression and headers), only set content-length to actual buffer size
+        // Pass-through response (헤더 충돌 방지: TE 제거 후 content-length만 설정)
         res.status(proxyRes.statusCode || 200)
-        Object.entries(proxyRes.headers || {}).forEach(([k, v]) => {
-          if (typeof v === 'string' || Array.isArray(v)) {
-            res.setHeader(k, v)
-          }
+        const hdrs: Record<string, string | string[] | undefined> = { ...(proxyRes.headers as Record<string, string | string[] | undefined>) }
+        delete hdrs['transfer-encoding']
+        Object.entries(hdrs || {}).forEach(([k, v]) => {
+          if (typeof v === 'string' || Array.isArray(v)) res.setHeader(k, v)
         })
         res.setHeader('content-length', buffer.length)
         res.end(buffer)
