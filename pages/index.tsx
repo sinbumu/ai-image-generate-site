@@ -93,10 +93,10 @@ export default function Home() {
       if (!r.ok) throw new Error(await r.text())
       const ct = r.headers.get('content-type') || ''
       if (ct.includes('application/json')) {
-        const data = await r.json()
-        const b64 = data?.data?.[0]?.b64_json
-        if (!b64) throw new Error('응답에 이미지 없음')
-        setGptImg(`data:image/png;base64,${b64}`)
+      const data = await r.json()
+      const b64 = data?.data?.[0]?.b64_json
+      if (!b64) throw new Error('응답에 이미지 없음')
+      setGptImg(`data:image/png;base64,${b64}`)
       } else {
         const blob = await r.blob()
         const url = URL.createObjectURL(blob)
@@ -558,14 +558,14 @@ export default function Home() {
             className="rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20"
           />
 
-          {hlModel.startsWith('i2v') && (
+        {hlModel.startsWith('i2v') && (
             <div className="grid gap-2 mt-1">
               <label className="inline-flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                 <input type="checkbox" checked={usePreupload} onChange={e => setUsePreupload(e.target.checked)} className="size-4" />
                 이미지 파일을 사전 업로드로 URL 만들기
-              </label>
-              {usePreupload ? (
-                <>
+            </label>
+            {usePreupload ? (
+              <>
                   <div className="flex items-center gap-3">
                     <input
                       id="hl-preupload-file"
@@ -587,9 +587,9 @@ export default function Home() {
                     </span>
                   </div>
                   <p className="text-xs text-neutral-500">버킷이 퍼블릭 읽기여야 Hailuo가 접근할 수 있습니다.</p>
-                </>
-              ) : (
-                <>
+              </>
+            ) : (
+              <>
                   <label className="text-sm text-neutral-600 dark:text-neutral-300">이미지 URL</label>
                   <input
                     type="url"

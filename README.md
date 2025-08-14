@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## AI Media Toy (Next.js, pages router)
 
-## Getting Started
+프록시형 AI 생성(OPENAI 이미지 편집, Hailuo 영상 생성) + SQLite 히스토리 저장 미니 프로젝트입니다.
 
-First, run the development server:
+### 요구 환경
+- Node.js 18+
+- npm
+- (운영 권장) `~/.env.local` 환경변수
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# S3 / R2 (필수)
+S3_ACCESS_KEY=...
+S3_SECRET_KEY=...
+S3_BUCKET=...
+S3_REGION=ap-northeast-2
+# R2 사용하는 경우만
+S3_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
+
+# 업로드 경로 prefix(선택)
+S3_PREFIX=ai-media-toy/prod
+
+# 키 해시 솔트(서버 저장용)
+KEY_HASH_SALT=change_me
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 로컬 개발
+```bash
+npm i
+npm run dev
+# http://localhost:3000
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 빌드/운영 실행 (EC2 직접 배포)
+```bash
+# 1) 의존성 설치
+npm ci --omit=dev
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 2) 빌드
+npm run build
 
-## Learn More
+# 3) 실행 (포그라운드)
+npm run start
 
-To learn more about Next.js, take a look at the following resources:
+# PM2 등 프로세스 매니저 사용 예시
+npm i -g pm2
+NODE_ENV=production pm2 start "npm run start" --name ai-media-toy
+pm2 save
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### EC2 배포 가이드(도커 미사용)
+1) Amazon Linux2/Ubuntu에 Node.js 18+ 설치
+2) 레포 클론 또는 GitHub Actions에서 EC2로 pull
+3) `.env.local` 작성 (위 환경변수 참고)
+4) `npm ci --omit=dev && npm run build`
+5) `npm run start` 또는 PM2로 상시 실행
+6) 보안그룹에서 3000 포트(또는 Nginx 리버스 프록시 80/443) 오픈
+7) Route53에서 A레코드를 EC2 퍼블릭 IP로 매핑(고정 IP 필요 시 EIP 할당)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+참고: Nginx 리버스 프록시 예시
+```
+server {
+    listen 80;
+    server_name example.com;
 
-## Deploy on Vercel
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### GitHub 커밋/푸시
+```bash
+git add -A
+git commit -m "feat: initial proxy + sqlite history + ui"
+git branch -M main
+git remote add origin <YOUR_REPO_URL>
+git push -u origin main
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 운영 체크리스트
+- 서버 로그에 키가 남지 않도록 헤더 로깅 금지(현재 코드 안전)
+- presign은 퍼블릭 읽기 버킷/경로 전제. 운영은 서명 URL/CloudFront 권장
+- 보안그룹/방화벽/HTTPS(TLS) 적용 권장(Nginx+Let’s Encrypt)
+
