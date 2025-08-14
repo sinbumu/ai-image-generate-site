@@ -9,6 +9,9 @@ export default function Home() {
   const [gptStatus, setGptStatus] = useState('')
   const [gptImg, setGptImg] = useState<string>('')
   const [gptLoading, setGptLoading] = useState(false)
+  const [gptBackground, setGptBackground] = useState<'transparent' | 'opaque'>('transparent')
+  const [gptSize, setGptSize] = useState<'1024x1536' | '1536x1024' | '1024x1024'>('1024x1536')
+  const [gptQuality, setGptQuality] = useState<'low' | 'medium' | 'high'>('low')
   const [gptSaved, setGptSaved] = useState(false)
 
   const [hlModel, setHlModel] = useState('i2v-02')
@@ -84,6 +87,9 @@ export default function Home() {
     fd.append('model', 'gpt-image-1')
     fd.append('prompt', gptPrompt)
     fd.append('image', gptFile, gptFile.name)
+    fd.append('background', gptBackground)
+    fd.append('size', gptSize)
+    fd.append('quality', gptQuality)
     try {
       const r = await fetch('/api/openai-image-edit', {
         method: 'POST',
@@ -499,6 +505,40 @@ export default function Home() {
             placeholder="예) Create a chaotic logo with ..."
             className="rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20"
           />
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">background</label>
+              <select
+                value={gptBackground}
+                onChange={e => setGptBackground(e.target.value as 'transparent' | 'opaque')}
+                className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="transparent">transparent</option>
+                <option value="opaque">opaque</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">size</label>
+              <select
+                value={gptSize}
+                onChange={e => setGptSize(e.target.value as '1024x1536' | '1536x1024' | '1024x1024')}
+                className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="1024x1536">1024x1536</option>
+                <option value="1536x1024">1536x1024</option>
+                <option value="1024x1024">1024x1024</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">quality</label>
+              <select
+                value={gptQuality}
+                onChange={e => setGptQuality(e.target.value as 'low' | 'medium' | 'high')}
+                className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+            </div>
+          </div>
           <div className="flex items-center gap-3 mt-1">
             <button
               onClick={runGpt}

@@ -33,7 +33,8 @@ npm run dev
 ### 빌드/운영 실행 (EC2 직접 배포)
 ```bash
 # 1) 의존성 설치
-npm ci --omit=dev
+# 빌드를 서버에서 수행하므로 devDependencies 포함 설치 필요
+npm ci
 
 # 2) 빌드
 npm run build
@@ -45,7 +46,32 @@ npm run start
 npm i -g pm2
 NODE_ENV=production pm2 start "npm run start" --name ai-media-toy
 pm2 save
+
+# (선택) 빌드 후 런타임 절감
+# npm prune --production && pm2 restart ai-media-toy
 ```
+
+### 재배포(업데이트) 절차
+```bash
+# 서비스 중단 없이 업데이트(권장)
+cd /home/ec2-user/ai-media-toy   # 실제 배포 경로로 이동
+git pull --ff-only origin main   # 또는 git fetch && git reset --hard origin/main
+
+# 의존성/빌드 (devDependencies 포함)
+npm ci
+npm run build
+
+# 재시작
+pm2 restart ai-media-toy && pm2 save
+```
+
+확인 체크리스트
+- Next 정적 자산: `/_next/static/<BUILD_ID>/_buildManifest.js`가 200이어야 함
+  ```bash
+  curl -I http://127.0.0.1:3000/_next/static/$(cat .next/BUILD_ID)/_buildManifest.js
+  ```
+- CSS 미적용 시: devDependencies 없이 빌드했는지 확인 후 `npm ci`로 재설치 → `npm run build`
+- Nginx 리로드: `sudo nginx -t && sudo systemctl reload nginx`
 
 ### EC2 배포 가이드(도커 미사용)
 1) Amazon Linux2/Ubuntu에 Node.js 18+ 설치
