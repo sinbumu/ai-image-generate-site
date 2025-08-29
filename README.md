@@ -58,11 +58,11 @@ cd /home/ec2-user/ai-media-toy   # 실제 배포 경로로 이동
 git pull --ff-only origin main   # 또는 git fetch && git reset --hard origin/main
 
 # 의존성/빌드 (devDependencies 포함)
-npm ci
-npm run build
+sudo npm ci
+sudo npm run build
 
 # 재시작
-pm2 restart ai-media-toy && pm2 save
+sudo pm2 restart ai-media-toy && sudo pm2 save
 ```
 
 확인 체크리스트
