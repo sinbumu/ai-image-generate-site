@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export default function Home() {
   const [openaiKey, setOpenaiKey] = useState('')
@@ -58,6 +58,7 @@ export default function Home() {
   const [uploadLocked, setUploadLocked] = useState(false)
   const [uploadStatus, setUploadStatus] = useState('')
   const [uploadedList, setUploadedList] = useState<Array<{ url: string; name: string; createdAt: string }>>([])
+  const [uploadedOffset, setUploadedOffset] = useState(0)
 
   const confirmUploadImage = async () => {
     if (uploadBusy || uploadLocked) return
@@ -77,6 +78,12 @@ export default function Home() {
       if (!put.ok) throw new Error('업로드 실패')
       setUploadStatus('완료: ' + objectUrl)
       setUploadLocked(true)
+      // DB 기록
+      fetch('/api/uploaded-images', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: objectUrl, name: uploadFile.name, contentType: uploadFile.type, size: uploadFile.size })
+      }).catch(() => {})
+      // 프론트 즉시 반영
       setUploadedList(prev => [{ url: objectUrl, name: uploadFile.name, createdAt: new Date().toISOString() }, ...prev].slice(0, 10))
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -85,6 +92,16 @@ export default function Home() {
       setUploadBusy(false)
     }
   }
+
+  type UploadedRow = { id: number; created_at: string; url: string; name?: string; content_type?: string; size?: number }
+  const refreshUploaded = useCallback(async () => {
+    const r = await fetch(`/api/uploaded-images?offset=${uploadedOffset}&limit=10`)
+    if (!r.ok) return
+    const { items } = await r.json() as { items: UploadedRow[] }
+    setUploadedList(items.map((x) => ({ url: x.url, name: x.name || '', createdAt: x.created_at })))
+  }, [uploadedOffset])
+
+  useEffect(() => { void refreshUploaded() }, [refreshUploaded])
 
   useEffect(() => {
     setOpenaiKey(sessionStorage.getItem('OPENAI_KEY') || '')
@@ -545,6 +562,11 @@ export default function Home() {
             ))}
           </div>
         )}
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => setUploadedOffset(Math.max(0, uploadedOffset - 10))} disabled={uploadedOffset === 0} className={`h-8 px-3 rounded border text-sm ${uploadedOffset === 0 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Prev</button>
+          <button onClick={() => setUploadedOffset(uploadedOffset + 10)} disabled={uploadedList.length < 10} className={`h-8 px-3 rounded border text-sm ${uploadedList.length < 10 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Next</button>
+          <button onClick={() => void refreshUploaded()} className="h-8 px-3 rounded border border-neutral-300 dark:border-neutral-700 text-sm">Refresh</button>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mb-6">

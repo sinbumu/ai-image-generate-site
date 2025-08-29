@@ -44,6 +44,17 @@ CREATE TABLE IF NOT EXISTS saved_creations (
   metadata_json TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_saved_creations_key_created ON saved_creations(key_hash, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS uploaded_images (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  url TEXT NOT NULL,
+  name TEXT,
+  content_type TEXT,
+  size INTEGER,
+  uploader_ip TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_uploaded_images_created ON uploaded_images(created_at DESC);
 `)
 
 export default db
