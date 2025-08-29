@@ -73,6 +73,45 @@ pm2 restart ai-media-toy && pm2 save
 - CSS 미적용 시: devDependencies 없이 빌드했는지 확인 후 `npm ci`로 재설치 → `npm run build`
 - Nginx 리로드: `sudo nginx -t && sudo systemctl reload nginx`
 
+### Cloudflare R2(서버 고정 크레덴셜) 사용
+프론트의 “사전 업로드”는 `/api/presign`을 호출해 presigned PUT URL을 받습니다. 서버에 R2 크레덴셜을 고정해 두면 자동으로 R2를 사용합니다.
+
+1) R2에서 준비할 정보
+- Access Key ID / Secret Access Key
+- Account ID 기반 Endpoint: `https://<accountid>.r2.cloudflarestorage.com`
+- Bucket: 예) `dev-miji-photocard`
+
+2) 서버 `.env.local` 설정 예시
+```bash
+S3_ACCESS_KEY=<R2_ACCESS_KEY_ID>
+S3_SECRET_KEY=<R2_SECRET_KEY>
+S3_BUCKET=dev-miji-photocard
+S3_REGION=auto
+S3_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
+S3_PREFIX=ai-media-toy/prod   # 선택(프로젝트 전용 경로)
+```
+
+3) R2 CORS/공개 읽기 설정(필수)
+- CORS에 `https://lab.cccv.to` 허용(Origins): Methods `PUT,GET,HEAD`, Headers `*`, Expose `ETag`.
+- 공개 읽기: `S3_PREFIX` 하위만 Public Read 권장(데모는 버킷 전체 Public Read 가능).
+
+4) presign 동작 확인
+```bash
+curl -s -X POST https://lab.cccv.to/api/presign \
+  -H 'content-type: application/json' \
+  -d '{"filename":"test.png","contentType":"image/png"}'
+# => uploadUrl, objectUrl 가 반환돼야 합니다.
+```
+
+5) 배포 반영
+```bash
+pm2 stop ai-media-toy || true
+cd /home/ec2-user/ai-media-toy
+npm ci && npm run build
+NODE_ENV=production pm2 start "npm run start" --name ai-media-toy --update-env
+pm2 save
+```
+
 ### EC2 배포 가이드(도커 미사용)
 1) Amazon Linux2/Ubuntu에 Node.js 18+ 설치
 2) 레포 클론 또는 GitHub Actions에서 EC2로 pull

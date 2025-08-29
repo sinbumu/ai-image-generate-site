@@ -52,6 +52,40 @@ export default function Home() {
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     }).format(new Date(s))
 
+  // 단순 이미지 업로드(S3 presign)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadBusy, setUploadBusy] = useState(false)
+  const [uploadLocked, setUploadLocked] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState('')
+  const [uploadedList, setUploadedList] = useState<Array<{ url: string; name: string; createdAt: string }>>([])
+
+  const confirmUploadImage = async () => {
+    if (uploadBusy || uploadLocked) return
+    if (!uploadFile) { setUploadStatus('파일을 선택하세요'); return }
+    try {
+      setUploadBusy(true)
+      setUploadStatus('업로드 준비 중...')
+      const pres = await fetch('/api/presign', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type || 'image/png' })
+      })
+      if (!pres.ok) throw new Error(await pres.text())
+      const { uploadUrl, objectUrl } = await pres.json()
+      setUploadStatus('업로드 중...')
+      const put = await fetch(uploadUrl, { method: 'PUT', body: uploadFile })
+      if (!put.ok) throw new Error('업로드 실패')
+      setUploadStatus('완료: ' + objectUrl)
+      setUploadLocked(true)
+      setUploadedList(prev => [{ url: objectUrl, name: uploadFile.name, createdAt: new Date().toISOString() }, ...prev].slice(0, 10))
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setUploadStatus('에러: ' + msg)
+    } finally {
+      setUploadBusy(false)
+    }
+  }
+
   useEffect(() => {
     setOpenaiKey(sessionStorage.getItem('OPENAI_KEY') || '')
     setPiapiKey(sessionStorage.getItem('PIAPI_KEY') || '')
@@ -478,6 +512,39 @@ export default function Home() {
           </div>
           <p className="text-xs text-neutral-500">키는 sessionStorage에만 저장됩니다(탭 닫으면 삭제).</p>
         </div>
+      </section>
+
+      {/* 이미지 업로드 (S3 presign) */}
+      <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mb-6">
+        <h2 className="text-lg font-medium mb-4">이미지 업로드</h2>
+        <div className="grid gap-3">
+          <div className="flex items-center gap-3">
+            <input id="simple-upload" type="file" accept="image/*" onChange={e => { setUploadFile(e.target.files?.[0] || null); setUploadLocked(false); setUploadStatus('') }} className="hidden" />
+            <label htmlFor="simple-upload" role="button" tabIndex={0} className="inline-flex items-center justify-center h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 cursor-pointer select-none hover:bg-neutral-50 dark:hover:bg-neutral-700 active:bg-neutral-100 dark:active:bg-neutral-600 focus:outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">파일 선택</label>
+            <span className="text-sm text-neutral-600 dark:text-neutral-300 truncate max-w-[60%]">{uploadFile?.name || '선택된 파일 없음'}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={confirmUploadImage} disabled={uploadBusy || uploadLocked || !uploadFile} className={`h-10 px-3 rounded-xl text-white font-medium transition-colors ${uploadBusy || uploadLocked || !uploadFile ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700'}`}>{uploadBusy ? '업로드 중...' : uploadLocked ? '완료' : '업로드'}</button>
+            <p className="text-sm text-neutral-600 dark:text-neutral-300">{uploadStatus}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* 이미지 업로드 리스트 */}
+      <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mb-6">
+        <h2 className="text-lg font-medium mb-4">이미지 업로드 리스트</h2>
+        {uploadedList.length === 0 ? (
+          <p className="text-sm text-neutral-500">아직 업로드된 이미지가 없습니다.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            {uploadedList.slice(0, 10).map((u, idx) => (
+              <div key={`${u.url}-${idx}`} className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-2">
+                <img src={u.url} alt="thumb" className="w-full aspect-square object-cover rounded" />
+                <a href={u.url} target="_blank" rel="noreferrer" className="block mt-2 text-xs text-blue-600 dark:text-blue-400 truncate hover:underline">{u.url}</a>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mb-6">
