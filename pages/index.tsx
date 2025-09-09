@@ -26,6 +26,8 @@ export default function Home() {
 
   const [hlStatus, setHlStatus] = useState('')
   const [hlVideoUrl, setHlVideoUrl] = useState('')
+  const [hlDownloadUrl, setHlDownloadUrl] = useState('')
+  const [hlWatermarkUrl, setHlWatermarkUrl] = useState('')
   const [hlLoading, setHlLoading] = useState(false)
   const [hlCoverUrl, setHlCoverUrl] = useState('')
   const [hlUsedSourceUrl, setHlUsedSourceUrl] = useState('')
@@ -240,9 +242,9 @@ export default function Home() {
     if (!hlVideoUrl) return
     if (!piapiKey) throw new Error('PIAPI 키가 필요합니다')
     if (hlSaved) return
-    let uploadUrl = hlVideoUrl
+    let uploadUrl = hlDownloadUrl || hlVideoUrl
     try {
-      const videoBlobResp = await fetch(hlVideoUrl)
+      const videoBlobResp = await fetch(hlDownloadUrl || hlVideoUrl)
       if (videoBlobResp.ok) {
         const blob = await videoBlobResp.blob()
         const guessedType = blob.type || 'video/mp4'
@@ -266,7 +268,7 @@ export default function Home() {
         source_url: hlModel.startsWith('i2v') && hlUsedSourceUrl ? hlUsedSourceUrl : undefined,
         resource_url: uploadUrl,
         thumb_url: hlCoverUrl || undefined,
-        metadata: {},
+        metadata: { watermark_url: hlWatermarkUrl, download_url: hlDownloadUrl },
       }),
     })
     if (!resp.ok) throw new Error(await resp.text())
@@ -428,13 +430,20 @@ export default function Home() {
           if (typeof v === 'number') return v === 2 ? 'completed' : v === -1 ? 'failed' : 'processing'
           return undefined
         }
-        const extractVideoUrl = (obj: unknown): string | undefined => {
+        const extractDownloadUrl = (obj: unknown): string | undefined => {
           const candidates = [
+            get(obj, ['data', 'output', 'download_url']),
+            get(obj, ['result', 'download_url']),
+          ]
+          const v = candidates.find((x) => typeof x === 'string')
+          return v as string | undefined
+        }
+        const extractWatermarkUrl = (obj: unknown): string | undefined => {
+          const candidates = [
+            get(obj, ['data', 'output', 'video_url']),
             get(obj, ['result', 'video_url']),
             get(obj, ['result', 'url']),
             get(obj, ['data', 'result', 'video_url']),
-            get(obj, ['data', 'output', 'video_url']),
-            get(obj, ['data', 'output', 'download_url']),
           ]
           const v = candidates.find((x) => typeof x === 'string')
           return v as string | undefined
@@ -449,10 +458,14 @@ export default function Home() {
         }
         const s = extractStatus(parsed)
         if (s === 'completed') {
-          const url = extractVideoUrl(parsed)
+          const dl = extractDownloadUrl(parsed)
+          const wm = extractWatermarkUrl(parsed)
+          const url = dl || wm
           if (!url) throw new Error(`완료됐지만 영상 URL 없음 — 응답: ${typeof parsed === 'string' ? parsed : JSON.stringify(parsed)}`)
           const cover = extractCoverUrl(parsed)
           if (cover) setHlCoverUrl(cover)
+          setHlDownloadUrl(dl || '')
+          setHlWatermarkUrl(wm || '')
           setHlVideoUrl(url)
           setHlStatus('완료')
           done = true
@@ -784,7 +797,12 @@ export default function Home() {
           </div>
 
           {hlVideoUrl && (
-            <video src={hlVideoUrl} controls className="mt-2 w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
+            <>
+              <video src={hlDownloadUrl || hlVideoUrl} controls className="mt-2 w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
+              {hlWatermarkUrl && (
+                <p className="text-xs text-neutral-500 mt-1">워터마크 버전 URL: <a href={hlWatermarkUrl} target="_blank" rel="noreferrer" className="underline break-all">{hlWatermarkUrl}</a></p>
+              )}
+            </>
           )}
         </div>
       </section>
