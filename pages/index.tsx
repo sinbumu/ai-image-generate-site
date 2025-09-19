@@ -9,7 +9,7 @@ export default function Home() {
   const [gptStatus, setGptStatus] = useState('')
   const [gptImg, setGptImg] = useState<string>('')
   const [gptLoading, setGptLoading] = useState(false)
-  const [gptBackground, setGptBackground] = useState<'transparent' | 'opaque'>('transparent')
+  const [gptBackground, setGptBackground] = useState<'transparent' | 'opaque' | 'auto'>('opaque')
   const [gptSize, setGptSize] = useState<'1024x1536' | '1536x1024' | '1024x1024'>('1024x1536')
   const [gptQuality, setGptQuality] = useState<'low' | 'medium' | 'high'>('low')
   const [gptSaved, setGptSaved] = useState(false)
@@ -619,10 +619,11 @@ export default function Home() {
               <label className="text-sm text-neutral-600 dark:text-neutral-300">background</label>
               <select
                 value={gptBackground}
-                onChange={e => setGptBackground(e.target.value as 'transparent' | 'opaque')}
+                onChange={e => setGptBackground(e.target.value as 'transparent' | 'opaque' | 'auto')}
                 className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
                 <option value="transparent">transparent</option>
                 <option value="opaque">opaque</option>
+                <option value="auto">auto</option>
               </select>
             </div>
             <div className="grid gap-1">
