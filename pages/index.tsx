@@ -4,7 +4,7 @@ export default function Home() {
   const [openaiKey, setOpenaiKey] = useState('')
   const [piapiKey, setPiapiKey] = useState('')
 
-  const [gptFile, setGptFile] = useState<File | null>(null)
+  const [gptFiles, setGptFiles] = useState<Array<File | null>>([null])
   const [gptPrompt, setGptPrompt] = useState('')
   const [gptStatus, setGptStatus] = useState('')
   const [gptImg, setGptImg] = useState<string>('')
@@ -138,15 +138,18 @@ export default function Home() {
     setGptLoading(true)
     setGptImg('')
     setGptSaved(false)
-    if (!openaiKey || !gptFile || !gptPrompt) {
-      setGptStatus('키/이미지/프롬프트 필수')
+    const files = gptFiles.filter(Boolean) as File[]
+    if (!openaiKey || files.length === 0 || !gptPrompt) {
+      setGptStatus('키/이미지(1~16개)/프롬프트 필수')
       setGptLoading(false)
       return
     }
     const fd = new FormData()
     fd.append('model', 'gpt-image-1')
     fd.append('prompt', gptPrompt)
-    fd.append('image', gptFile, gptFile.name)
+    for (const f of files.slice(0, 16)) {
+      fd.append('image[]', f, f.name)
+    }
     fd.append('background', gptBackground)
     fd.append('size', gptSize)
     fd.append('quality', gptQuality)
@@ -585,26 +588,54 @@ export default function Home() {
       <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mb-6">
         <h2 className="text-lg font-medium mb-4">GPT 이미지 편집</h2>
         <div className="grid gap-3">
-          <label className="text-sm text-neutral-600 dark:text-neutral-300">원본 이미지</label>
-          <div className="flex items-center gap-3">
-            <input
-              id="gpt-file"
-              type="file"
-              accept="image/*"
-              onChange={e => setGptFile(e.target.files?.[0] || null)}
-              className="hidden"
-            />
-            <label
-              htmlFor="gpt-file"
-              role="button"
-              tabIndex={0}
-              className="inline-flex items-center justify-center h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 cursor-pointer select-none hover:bg-neutral-50 dark:hover:bg-neutral-700 active:bg-neutral-100 dark:active:bg-neutral-600 focus:outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20"
-            >
-              파일 선택
-            </label>
-            <span className="text-sm text-neutral-600 dark:text-neutral-300 truncate max-w-[60%]">
-              {gptFile?.name || '선택된 파일 없음'}
-            </span>
+          <label className="text-sm text-neutral-600 dark:text-neutral-300">원본 이미지(최대 16개)</label>
+          <div className="grid gap-2">
+            {gptFiles.map((file, idx) => (
+              <div key={`gpt-file-${idx}`} className="flex items-center gap-3">
+                <input
+                  id={`gpt-file-${idx}`}
+                  type="file"
+                  accept="image/*"
+                  onChange={e => {
+                    const next = [...gptFiles]
+                    next[idx] = e.target.files?.[0] || null
+                    setGptFiles(next)
+                  }}
+                  className="hidden"
+                />
+                <label
+                  htmlFor={`gpt-file-${idx}`}
+                  role="button"
+                  tabIndex={0}
+                  className="inline-flex items-center justify-center h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 cursor-pointer select-none hover:bg-neutral-50 dark:hover:bg-neutral-700 active:bg-neutral-100 dark:active:bg-neutral-600 focus:outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20"
+                >
+                  파일 선택
+                </label>
+                <span className="text-sm text-neutral-600 dark:text-neutral-300 truncate max-w-[50%]">
+                  {file?.name || '선택된 파일 없음'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = gptFiles.filter((_, i) => i !== idx)
+                    setGptFiles(next.length > 0 ? next : [null])
+                  }}
+                  className="h-8 px-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-sm"
+                >
+                  -
+                </button>
+              </div>
+            ))}
+            <div>
+              <button
+                type="button"
+                onClick={() => { if (gptFiles.length < 16) setGptFiles([...gptFiles, null]) }}
+                disabled={gptFiles.length >= 16}
+                className={`h-9 px-3 rounded-lg border text-sm ${gptFiles.length >= 16 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}
+              >
+                + 이미지 추가
+              </button>
+            </div>
           </div>
           <label className="text-sm text-neutral-600 dark:text-neutral-300 mt-1">프롬프트</label>
           <textarea
