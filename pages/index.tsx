@@ -998,10 +998,13 @@ export default function Home() {
                   const rr = await fetch(`/api/pixverse-result?id=${encodeURIComponent(String(videoId))}`, { headers: { 'x-user-pixverse-key': pixKey } })
                   const tt = await rr.text()
                   const jj = (() => { try { return JSON.parse(tt) } catch { return {} } })()
-                  const status = jj?.Resp?.status ?? jj?.resp?.status
-                  if (status === 2 || status === 'completed') { url = jj?.Resp?.url ?? jj?.resp?.url; break }
-                  if (status === -1 || status === 'failed') throw new Error(`실패: ${tt}`)
-                  setPixStatus(`상태: ${status ?? '대기 중'}...`)
+                  const rawStatus = jj?.Resp?.status ?? jj?.resp?.status
+                  const statusNum = typeof rawStatus === 'number' ? rawStatus : (typeof rawStatus === 'string' ? parseInt(rawStatus, 10) : NaN)
+                  const resultUrl = jj?.Resp?.url ?? jj?.resp?.url
+                  if (statusNum === 1 && typeof resultUrl === 'string' && resultUrl) { url = resultUrl; break }
+                  if (statusNum === 5) { setPixStatus('상태: Generating(5)...'); continue }
+                  if (statusNum === 6 || statusNum === 7 || statusNum === 8) throw new Error(`실패(status=${statusNum}): ${tt}`)
+                  setPixStatus(`상태: ${String(rawStatus ?? '대기 중')}...`)
                 }
                 if (!url) throw new Error('타임아웃 또는 URL 없음')
                 setPixVideoUrl(url)
