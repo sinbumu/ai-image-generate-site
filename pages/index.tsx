@@ -48,7 +48,7 @@ export default function Home() {
 
   // 히스토리 (요청/생성물)
   type RequestItem = { id: number; created_at: string; provider: string; endpoint?: string; task_id?: string; status: string; error_message?: string | null }
-  type CreationItem = { id: number; created_at: string; provider: string; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null }
+  type CreationItem = { id: number; created_at: string; provider: 'openai' | 'hailuo' | 'pixverse'; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null }
   const [reqOpenai, setReqOpenai] = useState<RequestItem[]>([])
   const [reqHailuo, setReqHailuo] = useState<RequestItem[]>([])
   const [creOpenai, setCreOpenai] = useState<CreationItem[]>([])
@@ -1207,7 +1207,14 @@ export default function Home() {
             <div className="text-sm font-semibold mb-2">Pixverse</div>
             <div className="grid grid-cols-3 gap-3">
               {pixCre.map(c => (
-                <button key={`pc-${c.id}`} onClick={() => {}} className="group aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800">
+                <button key={`pc-${c.id}`} onClick={() => setModal({
+                  id: Number(c.id),
+                  created_at: new Date().toISOString(),
+                  provider: 'pixverse',
+                  kind: 'video',
+                  resource_url: c.video_url || '',
+                  thumb_url: c.thumb_url || undefined,
+                })} className="group aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800">
                   {c.video_url ? (
                     <video src={c.video_url} className="w-full h-full object-cover group-hover:opacity-90" muted />
                   ) : (
