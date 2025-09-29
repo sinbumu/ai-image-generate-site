@@ -33,6 +33,19 @@ export default function Home() {
   const [hlUsedSourceUrl, setHlUsedSourceUrl] = useState('')
   const [hlSaved, setHlSaved] = useState(false)
 
+  // Pixverse
+  const [pixKey, setPixKey] = useState('')
+  const [pixFirst, setPixFirst] = useState<File | null>(null)
+  const [pixLast, setPixLast] = useState<File | null>(null)
+  const [pixPrompt, setPixPrompt] = useState('')
+  const [pixModel, setPixModel] = useState('v5')
+  const [pixDuration, setPixDuration] = useState(5)
+  const [pixQuality, setPixQuality] = useState('720p')
+  const [pixMotion, setPixMotion] = useState('normal')
+  const [pixStatus, setPixStatus] = useState('')
+  const [pixVideoUrl, setPixVideoUrl] = useState('')
+  const [pixSaved, setPixSaved] = useState(false)
+
   // 히스토리 (요청/생성물)
   type RequestItem = { id: number; created_at: string; provider: string; endpoint?: string; task_id?: string; status: string; error_message?: string | null }
   type CreationItem = { id: number; created_at: string; provider: string; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null }
@@ -42,8 +55,12 @@ export default function Home() {
   const [creHailuo, setCreHailuo] = useState<CreationItem[]>([])
   const [reqOpenaiOffset, setReqOpenaiOffset] = useState(0)
   const [reqHailuoOffset, setReqHailuoOffset] = useState(0)
+  const [pixReq, setPixReq] = useState<Array<{ id: number; created_at: string; endpoint?: string; video_id?: number; status?: string; error_message?: string | null }>>([])
+  const [pixReqOffset, setPixReqOffset] = useState(0)
   const [creOpenaiOffset, setCreOpenaiOffset] = useState(0)
   const [creHailuoOffset, setCreHailuoOffset] = useState(0)
+  const [pixCre, setPixCre] = useState<Array<{ id: number; created_at: string; prompt?: string | null; model?: string | null; duration?: number | null; quality?: string | null; motion_mode?: string | null; video_url?: string | null; thumb_url?: string | null }>>([])
+  const [pixCreOffset, setPixCreOffset] = useState(0)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [modal, setModal] = useState<CreationItem | null>(null)
 
@@ -108,6 +125,7 @@ export default function Home() {
   useEffect(() => {
     setOpenaiKey(sessionStorage.getItem('OPENAI_KEY') || '')
     setPiapiKey(sessionStorage.getItem('PIAPI_KEY') || '')
+    setPixKey(sessionStorage.getItem('PIXVERSE_KEY') || '')
   }, [])
 
   useEffect(() => {
@@ -116,7 +134,7 @@ export default function Home() {
       await Promise.all([refreshRequests(), refreshCreations()])
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openaiKey, piapiKey, reqOpenaiOffset, reqHailuoOffset, creOpenaiOffset, creHailuoOffset])
+  }, [openaiKey, piapiKey, reqOpenaiOffset, reqHailuoOffset, creOpenaiOffset, creHailuoOffset, pixKey, pixReqOffset, pixCreOffset])
 
   const persistOpenaiKey = () => {
     sessionStorage.setItem('OPENAI_KEY', openaiKey)
@@ -131,6 +149,13 @@ export default function Home() {
   const clearPiapiKey = () => {
     setPiapiKey('')
     sessionStorage.removeItem('PIAPI_KEY')
+  }
+  const persistPixKey = () => {
+    sessionStorage.setItem('PIXVERSE_KEY', pixKey)
+  }
+  const clearPixKey = () => {
+    setPixKey('')
+    sessionStorage.removeItem('PIXVERSE_KEY')
   }
 
   const runGpt = async () => {
@@ -296,6 +321,13 @@ export default function Home() {
           setReqHailuo(items)
         }
       }
+      if (pixKey) {
+        const r = await fetch(`/api/history/pixverse-requests?offset=${pixReqOffset}&limit=10`, { headers: { 'x-user-pixverse-key': pixKey } })
+        if (r.ok) {
+          const { items } = await r.json()
+          setPixReq(items)
+        }
+      }
     } finally {
       setHistoryLoading(false)
     }
@@ -316,6 +348,13 @@ export default function Home() {
         if (r.ok) {
           const { items } = await r.json()
           setCreHailuo(items)
+        }
+      }
+      if (pixKey) {
+        const r = await fetch(`/api/history/pixverse-creations?offset=${pixCreOffset}&limit=10`, { headers: { 'x-user-pixverse-key': pixKey } })
+        if (r.ok) {
+          const { items } = await r.json()
+          setPixCre(items)
         }
       }
     } finally {
@@ -544,6 +583,13 @@ export default function Home() {
             <button onClick={clearPiapiKey} className="h-9 px-3 rounded-lg border border-neutral-300 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800">제거</button>
           </div>
           <p className="text-xs text-neutral-500">키는 sessionStorage에만 저장됩니다(탭 닫으면 삭제).</p>
+          <div className="h-px bg-neutral-200 dark:bg-neutral-800 my-2" />
+          <label className="text-sm text-neutral-600 dark:text-neutral-300">Pixverse API Key</label>
+          <input type="password" value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="pix-..." autoComplete="new-password" autoCapitalize="off" spellCheck={false} inputMode="text" className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" name="pixverse_api_key" />
+          <div className="flex gap-2">
+            <button onClick={persistPixKey} className="h-9 px-3 rounded-lg bg-neutral-800 text-white text-sm hover:bg-neutral-700 dark:bg-neutral-700 dark:hover:bg-neutral-600">저장</button>
+            <button onClick={clearPixKey} className="h-9 px-3 rounded-lg border border-neutral-300 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800">제거</button>
+          </div>
         </div>
       </section>
 
@@ -839,6 +885,163 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Pixverse Transition */}
+      <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mt-6">
+        <h2 className="text-lg font-medium mb-4">Pixverse Transition (First→Last)</h2>
+        <div className="grid gap-3" />
+
+        <div className="grid gap-3 mt-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">First Frame</label>
+              <input id="pix-first" type="file" accept="image/*" onChange={e => setPixFirst(e.target.files?.[0] || null)} className="hidden" />
+              <label htmlFor="pix-first" role="button" tabIndex={0} className="inline-flex items-center justify-center h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 cursor-pointer">파일 선택</label>
+              <span className="text-sm text-neutral-600 dark:text-neutral-300">{pixFirst?.name || '선택된 파일 없음'}</span>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">Last Frame</label>
+              <input id="pix-last" type="file" accept="image/*" onChange={e => setPixLast(e.target.files?.[0] || null)} className="hidden" />
+              <label htmlFor="pix-last" role="button" tabIndex={0} className="inline-flex items-center justify-center h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 cursor-pointer">파일 선택</label>
+              <span className="text-sm text-neutral-600 dark:text-neutral-300">{pixLast?.name || '선택된 파일 없음'}</span>
+            </div>
+          </div>
+
+          <label className="text-sm text-neutral-600 dark:text-neutral-300">프롬프트</label>
+          <textarea rows={3} value={pixPrompt} onChange={e => setPixPrompt(e.target.value)} className="rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 py-2" />
+
+          <div className="grid sm:grid-cols-4 gap-3">
+            <div className="grid gap-1">
+              <label className="text-sm">model</label>
+              <select value={pixModel} onChange={e => setPixModel(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
+                <option value="v3.5">v3.5</option>
+                <option value="v4">v4</option>
+                <option value="v4.5">v4.5</option>
+                <option value="v5">v5</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm">duration</label>
+              <select value={pixDuration} onChange={e => setPixDuration(parseInt(e.target.value,10))} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
+                <option value={5}>5</option>
+                <option value={8}>8</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm">quality</label>
+              <select value={pixQuality} onChange={e => setPixQuality(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
+                <option value="360p">360p (Turbo)</option>
+                <option value="540p">540p</option>
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm">motion_mode</label>
+              <select value={pixMotion} onChange={e => setPixMotion(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
+                <option value="normal">normal</option>
+                <option value="fast">fast</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mt-2">
+            <button onClick={async () => {
+              try {
+                if (!pixKey || !pixFirst || !pixLast) { setPixStatus('키/First/Last 필요'); return }
+                setPixStatus('이미지 업로드 중...')
+                const toDataUrl = (f: File) => new Promise<string>((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(String(fr.result)); fr.onerror = reject; fr.readAsDataURL(f) })
+                const firstDataUrl = await toDataUrl(pixFirst)
+                const lastDataUrl = await toDataUrl(pixLast)
+                const up = async (dataUrl: string, filename: string, contentType: string) => {
+                  const r = await fetch('/api/pixverse-upload', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ dataUrl, filename, contentType }) })
+                  if (!r.ok) throw new Error(await r.text())
+                  return r.json()
+                }
+                const firstJson = await up(firstDataUrl, pixFirst.name, pixFirst.type || 'image/png')
+                const lastJson = await up(lastDataUrl, pixLast.name, pixLast.type || 'image/png')
+
+                const pickId = (j: unknown): number | undefined => {
+                  if (!j || typeof j !== 'object') return undefined
+                  const obj = j as Record<string, unknown>
+                  const upper = obj['Resp'] as Record<string, unknown> | undefined
+                  const lower = obj['resp'] as Record<string, unknown> | undefined
+                  const id = (upper?.['img_id'] ?? lower?.['img_id'])
+                  return typeof id === 'number' ? id : undefined
+                }
+                const firstId = pickId(firstJson)
+                const lastId = pickId(lastJson)
+                if (typeof firstId !== 'number' || typeof lastId !== 'number') throw new Error('이미지 업로드 결과에 img_id 없음')
+
+                setPixStatus('생성 요청 중...')
+                const body = {
+                  prompt: pixPrompt,
+                  model: pixModel,
+                  duration: pixDuration,
+                  quality: pixQuality,
+                  motion_mode: pixMotion,
+                  first_frame_img: firstId,
+                  last_frame_img: lastId,
+                  seed: 0,
+                }
+                const gen = await fetch('/api/pixverse-generate', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify(body) })
+                const genText = await gen.text()
+                if (!gen.ok) throw new Error(genText)
+                const genJson = (() => { try { return JSON.parse(genText) } catch { return {} } })()
+                const videoId = genJson?.Resp?.video_id ?? genJson?.resp?.video_id
+                if (typeof videoId !== 'number') throw new Error('video_id 없음')
+
+                setPixStatus(`생성됨(${videoId}) — 진행상황 확인 중...`)
+                const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
+                let url = ''
+                for (let i=0;i<60;i++) {
+                  await delay(5000)
+                  const rr = await fetch(`/api/pixverse-result?id=${encodeURIComponent(String(videoId))}`, { headers: { 'x-user-pixverse-key': pixKey } })
+                  const tt = await rr.text()
+                  const jj = (() => { try { return JSON.parse(tt) } catch { return {} } })()
+                  const status = jj?.Resp?.status ?? jj?.resp?.status
+                  if (status === 2 || status === 'completed') { url = jj?.Resp?.url ?? jj?.resp?.url; break }
+                  if (status === -1 || status === 'failed') throw new Error(`실패: ${tt}`)
+                  setPixStatus(`상태: ${status ?? '대기 중'}...`)
+                }
+                if (!url) throw new Error('타임아웃 또는 URL 없음')
+                setPixVideoUrl(url)
+                setPixStatus('완료')
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e)
+                setPixStatus('에러: ' + msg)
+              }
+            }} className={`h-11 px-4 rounded-xl text-white font-medium transition-colors bg-purple-600 hover:bg-purple-500 active:bg-purple-700`}>전환 생성</button>
+            <p className="text-sm text-neutral-600 dark:text-neutral-300">{pixStatus}</p>
+          </div>
+
+          {pixVideoUrl && (
+            <>
+              <video src={pixVideoUrl} controls className="mt-2 w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
+              <div className="mt-2">
+                <button onClick={async () => {
+                  if (!pixVideoUrl || !pixKey || pixSaved) return
+                  try {
+                    // S3 업로드로 영구 저장
+                    const resp = await fetch(pixVideoUrl)
+                    if (resp.ok) {
+                      const blob = await resp.blob()
+                      const url = await preuploadBlobToPublicUrl(`pixverse-video-${Date.now()}.mp4`, blob.type || 'video/mp4', blob)
+                      const r = await fetch('/api/pixverse-save', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ prompt: pixPrompt, model: pixModel, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, video_url: url, thumb_url: null, metadata: {} }) })
+                      if (!r.ok) throw new Error(await r.text())
+                      setPixSaved(true)
+                      // 목록 갱신
+                      await refreshCreations()
+                    }
+                  } catch (e) {
+                    // noop
+                  }
+                }} disabled={pixSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
       {/* 요청 히스토리 */}
       <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mt-6">
         <div className="flex items-center justify-between mb-4">
@@ -911,6 +1114,25 @@ export default function Home() {
             </div>
           </div>
         </div>
+        {/* Pixverse 요청 히스토리: 별도 행으로 분리 */}
+        <div className="mt-6">
+          <div className="text-sm font-semibold mb-2">Pixverse</div>
+          <ul className="space-y-2 text-sm">
+            {pixReq.map(item => (
+              <li key={`p-${item.id}`} className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3">
+                <div className="flex justify-between">
+                  <span className="text-neutral-600 dark:text-neutral-300">{formatKST(item.created_at)}</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800">{item.status}</span>
+                </div>
+                <div className="mt-1 truncate text-neutral-700 dark:text-neutral-200">{item.endpoint}</div>
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => setPixReqOffset(Math.max(0, pixReqOffset - 10))} disabled={pixReqOffset === 0} className={`h-8 px-3 rounded border text-sm ${pixReqOffset === 0 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Prev</button>
+            <button onClick={() => setPixReqOffset(pixReqOffset + 10)} disabled={pixReq.length < 10} className={`h-8 px-3 rounded border text-sm ${pixReq.length < 10 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Next</button>
+          </div>
+        </div>
       </section>
 
       {/* 저장한 생성물 */}
@@ -921,7 +1143,7 @@ export default function Home() {
             Refresh
           </button>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-3">
           <div>
             <div className="text-sm font-semibold mb-2">OpenAI</div>
             <div className="grid grid-cols-3 gap-3">
@@ -976,6 +1198,24 @@ export default function Home() {
               >
                 Next
               </button>
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-semibold mb-2">Pixverse</div>
+            <div className="grid grid-cols-3 gap-3">
+              {pixCre.map(c => (
+                <button key={`pc-${c.id}`} onClick={() => {}} className="group aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800">
+                  {c.video_url ? (
+                    <video src={c.video_url} className="w-full h-full object-cover group-hover:opacity-90" muted />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-neutral-500">no video</div>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => setPixCreOffset(Math.max(0, pixCreOffset - 10))} disabled={pixCreOffset === 0} className={`h-8 px-3 rounded border text-sm ${pixCreOffset === 0 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Prev</button>
+              <button onClick={() => setPixCreOffset(pixCreOffset + 10)} disabled={pixCre.length < 10} className={`h-8 px-3 rounded border text-sm ${pixCre.length < 10 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Next</button>
             </div>
           </div>
         </div>

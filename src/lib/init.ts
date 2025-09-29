@@ -55,6 +55,39 @@ CREATE TABLE IF NOT EXISTS uploaded_images (
   uploader_ip TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_uploaded_images_created ON uploaded_images(created_at DESC);
+
+-- Pixverse (별도 테이블로 관리: 기존 provider CHECK 제약과 충돌 회피)
+CREATE TABLE IF NOT EXISTS pixverse_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  key_hash TEXT NOT NULL,
+  endpoint TEXT,
+  video_id INTEGER,
+  status TEXT,
+  error_message TEXT,
+  payload_json TEXT,
+  response_json TEXT,
+  duration_ms INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_pixverse_requests_key_created ON pixverse_requests(key_hash, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pixverse_requests_video ON pixverse_requests(video_id);
+
+CREATE TABLE IF NOT EXISTS pixverse_creations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  key_hash TEXT NOT NULL,
+  prompt TEXT,
+  model TEXT,
+  duration INTEGER,
+  quality TEXT,
+  motion_mode TEXT,
+  first_img_id INTEGER,
+  last_img_id INTEGER,
+  video_url TEXT,
+  thumb_url TEXT,
+  metadata_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pixverse_creations_key_created ON pixverse_creations(key_hash, created_at DESC);
 `)
 
 export default db
