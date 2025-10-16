@@ -46,6 +46,149 @@ export default function Home() {
   const [pixVideoUrl, setPixVideoUrl] = useState('')
   const [pixSaved, setPixSaved] = useState(false)
 
+  // Pixverse Transition/i2v 추가 상태
+  const [seed, setSeed] = useState(0)
+  const runPixTransition = async () => {
+    setPixStatus('업로드 중...')
+    if (!pixKey || !pixFirst || !pixLast) { setPixStatus('키/이미지 필요'); return }
+    try {
+      // 업로드 first/last
+      const toDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => resolve(String(fr.result))
+        fr.onerror = () => reject(new Error('read failed'))
+        fr.readAsDataURL(file)
+      })
+      const [firstUrl, lastUrl] = await Promise.all([toDataUrl(pixFirst), toDataUrl(pixLast)])
+      const [u1, u2] = await Promise.all([
+        fetch('/api/pixverse-upload', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ filename: pixFirst.name, contentType: pixFirst.type, dataUrl: firstUrl }) }).then(r => r.json()),
+        fetch('/api/pixverse-upload', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ filename: pixLast.name, contentType: pixLast.type, dataUrl: lastUrl }) }).then(r => r.json()),
+      ])
+      const extractImgId = (resp: Record<string, unknown>): number | undefined => {
+        const upper = resp['Resp'] as Record<string, unknown> | undefined
+        const lower = resp['resp'] as Record<string, unknown> | undefined
+        const cand = (upper && typeof upper['img_id'] === 'number' ? upper['img_id'] : undefined) ?? (lower && typeof lower['img_id'] === 'number' ? lower['img_id'] : undefined)
+        return typeof cand === 'number' ? cand : undefined
+      }
+      const firstId = extractImgId(u1)
+      const lastId = extractImgId(u2)
+      if (!firstId || !lastId) { setPixStatus('업로드 실패: img_id 없음'); return }
+      setPixStatus('태스크 생성 중...')
+      const body = { first_img_id: firstId, last_img_id: lastId, model: pixModel, prompt: pixPrompt, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, seed }
+      const create = await fetch('/api/pixverse-generate', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify(body) })
+      const createText = await create.text()
+      if (!create.ok) throw new Error(createText)
+      const parsed = JSON.parse(createText)
+      const videoId = parsed?.Resp?.video_id ?? parsed?.resp?.video_id
+      if (!videoId) throw new Error('video_id 없음')
+      setPixStatus('폴링 중...')
+      const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
+      let url = ''
+      for (let i = 0; i < 60; i++) {
+        await delay(i < 2 ? 30000 : 10000)
+        const r = await fetch(`/api/pixverse-result?id=${encodeURIComponent(String(videoId))}`, { headers: { 'x-user-pixverse-key': pixKey } })
+        const t = await r.text()
+        if (!r.ok) throw new Error(t)
+        const p = JSON.parse(t)
+        const status = p?.Resp?.status ?? p?.resp?.status
+        if (status === 1) {
+          url = p?.Resp?.url ?? p?.resp?.url ?? ''
+          break
+        }
+        if (status === 6 || status === 7 || status === 8) throw new Error('생성 실패')
+        setPixStatus('생성 중...')
+      }
+      if (!url) throw new Error('완료됐지만 url 없음')
+      setPixVideoUrl(url)
+      setPixStatus('완료')
+    } catch (e) {
+      setPixStatus('에러: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
+  // i2v 전용 상태/함수
+  const [pixI2vFile, setPixI2vFile] = useState<File | null>(null)
+  const [pixI2vUploading, setPixI2vUploading] = useState(false)
+  const [pixI2vStatus, setPixI2vStatus] = useState('')
+  const [pixI2vImgId, setPixI2vImgId] = useState<number | null>(null)
+  const [pixI2vModel, setPixI2vModel] = useState('v5')
+  const [pixI2vQuality, setPixI2vQuality] = useState('720p')
+  const [pixI2vMotion, setPixI2vMotion] = useState('normal')
+  const [pixI2vDuration, setPixI2vDuration] = useState(5)
+  const [pixI2vSeed, setPixI2vSeed] = useState(0)
+  const [pixI2vPrompt, setPixI2vPrompt] = useState('')
+  const [pixI2vLoading, setPixI2vLoading] = useState(false)
+  const [pixI2vVideoUrl, setPixI2vVideoUrl] = useState('')
+  const [pixI2vSaved, setPixI2vSaved] = useState(false)
+  const [pixI2vSoundSwitch, setPixI2vSoundSwitch] = useState(false)
+  const [pixI2vSoundContent, setPixI2vSoundContent] = useState('')
+
+  const uploadPixI2v = async () => {
+    if (!pixKey || !pixI2vFile) return
+    try {
+      setPixI2vUploading(true)
+      setPixI2vStatus('업로드 중...')
+      const toDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => resolve(String(fr.result))
+        fr.onerror = () => reject(new Error('read failed'))
+        fr.readAsDataURL(file)
+      })
+      const dataUrl = await toDataUrl(pixI2vFile)
+      const r = await fetch('/api/pixverse-upload', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ filename: pixI2vFile.name, contentType: pixI2vFile.type, dataUrl }) })
+      const j = await r.json()
+      const id = j?.Resp?.img_id ?? j?.resp?.img_id
+      if (!id) throw new Error('img_id 없음')
+      setPixI2vImgId(Number(id))
+      setPixI2vStatus('업로드 완료')
+    } catch (e) {
+      setPixI2vStatus('에러: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setPixI2vUploading(false)
+    }
+  }
+
+  const runPixI2v = async () => {
+    if (!pixKey || !pixI2vImgId) return
+    setPixI2vLoading(true)
+    setPixI2vStatus('태스크 생성 중...')
+    setPixI2vVideoUrl('')
+    try {
+      const body: Record<string, unknown> = { duration: pixI2vDuration, img_id: pixI2vImgId, model: pixI2vModel, motion_mode: pixI2vMotion, prompt: pixI2vPrompt, quality: pixI2vQuality, seed: pixI2vSeed }
+      if (pixI2vSoundSwitch) {
+        body['sound_effect_switch'] = true
+        if (pixI2vSoundContent.trim()) body['sound_effect_content'] = pixI2vSoundContent.trim()
+      }
+      const create = await fetch('/api/pixverse-i2v-generate', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify(body) })
+      const t = await create.text()
+      if (!create.ok) throw new Error(t)
+      const p = JSON.parse(t)
+      const videoId = p?.Resp?.video_id ?? p?.resp?.video_id
+      if (!videoId) throw new Error('video_id 없음')
+      setPixI2vStatus('폴링 중...')
+      const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
+      let url = ''
+      for (let i = 0; i < 60; i++) {
+        await delay(i < 2 ? 30000 : 10000)
+        const r = await fetch(`/api/pixverse-i2v-result?id=${encodeURIComponent(String(videoId))}`, { headers: { 'x-user-pixverse-key': pixKey } })
+        const tt = await r.text()
+        if (!r.ok) throw new Error(tt)
+        const pr = JSON.parse(tt)
+        const s = pr?.Resp?.status ?? pr?.resp?.status
+        if (s === 1) { url = pr?.Resp?.url ?? pr?.resp?.url ?? ''; break }
+        if (s === 6 || s === 7 || s === 8) throw new Error('생성 실패')
+        setPixI2vStatus('생성 중...')
+      }
+      if (!url) throw new Error('완료됐지만 url 없음')
+      setPixI2vVideoUrl(url)
+      setPixI2vStatus('완료')
+    } catch (e) {
+      setPixI2vStatus('에러: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setPixI2vLoading(false)
+    }
+  }
+
   // 히스토리 (요청/생성물)
   type RequestItem = { id: number; created_at: string; provider: string; endpoint?: string; task_id?: string; status: string; error_message?: string | null }
   type CreationItem = { id: number; created_at: string; provider: 'openai' | 'hailuo' | 'pixverse'; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null }
@@ -672,7 +815,7 @@ export default function Home() {
                 </button>
               </div>
             ))}
-            <div>
+          <div>
               <button
                 type="button"
                 onClick={() => { if (gptFiles.length < 16) setGptFiles([...gptFiles, null]) }}
@@ -825,8 +968,8 @@ export default function Home() {
                     placeholder="https://example.com/image.jpg"
                     className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20"
                   />
-                </>
-              )}
+              </>
+            )}
             </div>
           )}
 
@@ -879,9 +1022,9 @@ export default function Home() {
               <video src={hlDownloadUrl || hlVideoUrl} controls className="mt-2 w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
               {hlWatermarkUrl && (
                 <p className="text-xs text-neutral-500 mt-1">워터마크 버전 URL: <a href={hlWatermarkUrl} target="_blank" rel="noreferrer" className="underline break-all">{hlWatermarkUrl}</a></p>
-              )}
-            </>
-          )}
+            )}
+          </>
+        )}
         </div>
       </section>
 
@@ -906,13 +1049,10 @@ export default function Home() {
             </div>
           </div>
 
-          <label className="text-sm text-neutral-600 dark:text-neutral-300">프롬프트</label>
-          <textarea rows={3} value={pixPrompt} onChange={e => setPixPrompt(e.target.value)} className="rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 py-2" />
-
-          <div className="grid sm:grid-cols-4 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             <div className="grid gap-1">
-              <label className="text-sm">model</label>
-              <select value={pixModel} onChange={e => setPixModel(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">model</label>
+              <select value={pixModel} onChange={e => setPixModel(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
                 <option value="v3.5">v3.5</option>
                 <option value="v4">v4</option>
                 <option value="v4.5">v4.5</option>
@@ -920,127 +1060,135 @@ export default function Home() {
               </select>
             </div>
             <div className="grid gap-1">
-              <label className="text-sm">duration</label>
-              <select value={pixDuration} onChange={e => setPixDuration(parseInt(e.target.value,10))} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
-                <option value={5}>5</option>
-                <option value={8}>8</option>
-              </select>
-            </div>
-            <div className="grid gap-1">
-              <label className="text-sm">quality</label>
-              <select value={pixQuality} onChange={e => setPixQuality(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
-                <option value="360p">360p (Turbo)</option>
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">quality</label>
+              <select value={pixQuality} onChange={e => setPixQuality(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="360p">360p</option>
                 <option value="540p">540p</option>
                 <option value="720p">720p</option>
                 <option value="1080p">1080p</option>
               </select>
             </div>
             <div className="grid gap-1">
-              <label className="text-sm">motion_mode</label>
-              <select value={pixMotion} onChange={e => setPixMotion(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">motion_mode</label>
+              <select value={pixMotion} onChange={e => setPixMotion(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
                 <option value="normal">normal</option>
                 <option value="fast">fast</option>
               </select>
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3 mt-1">
+            <div className="grid gap-2">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">duration</label>
+              <input type="number" min={5} max={8} value={pixDuration} onChange={e => setPixDuration(parseInt(e.target.value || '5', 10))} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">seed</label>
+              <input type="number" min={0} max={2147483647} value={seed} onChange={e => setSeed(Math.max(0, Math.min(2147483647, parseInt(e.target.value || '0', 10))))} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" />
+            </div>
+          </div>
+
+          <label className="text-sm text-neutral-600 dark:text-neutral-300">prompt</label>
+          <textarea rows={3} value={pixPrompt} onChange={e => setPixPrompt(e.target.value)} placeholder="예) A cat running in the park" className="rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" />
+
           <div className="flex items-center gap-3 mt-2">
-            <button onClick={async () => {
-              try {
-                if (!pixKey || !pixFirst || !pixLast) { setPixStatus('키/First/Last 필요'); return }
-                setPixStatus('이미지 업로드 중...')
-                const toDataUrl = (f: File) => new Promise<string>((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(String(fr.result)); fr.onerror = reject; fr.readAsDataURL(f) })
-                const firstDataUrl = await toDataUrl(pixFirst)
-                const lastDataUrl = await toDataUrl(pixLast)
-                const up = async (dataUrl: string, filename: string, contentType: string) => {
-                  const r = await fetch('/api/pixverse-upload', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ dataUrl, filename, contentType }) })
-                  if (!r.ok) throw new Error(await r.text())
-                  return r.json()
-                }
-                const firstJson = await up(firstDataUrl, pixFirst.name, pixFirst.type || 'image/png')
-                const lastJson = await up(lastDataUrl, pixLast.name, pixLast.type || 'image/png')
-
-                const pickId = (j: unknown): number | undefined => {
-                  if (!j || typeof j !== 'object') return undefined
-                  const obj = j as Record<string, unknown>
-                  const upper = obj['Resp'] as Record<string, unknown> | undefined
-                  const lower = obj['resp'] as Record<string, unknown> | undefined
-                  const id = (upper?.['img_id'] ?? lower?.['img_id'])
-                  return typeof id === 'number' ? id : undefined
-                }
-                const firstId = pickId(firstJson)
-                const lastId = pickId(lastJson)
-                if (typeof firstId !== 'number' || typeof lastId !== 'number') throw new Error('이미지 업로드 결과에 img_id 없음')
-
-                setPixStatus('생성 요청 중...')
-                const body = {
-                  prompt: pixPrompt,
-                  model: pixModel,
-                  duration: pixDuration,
-                  quality: pixQuality,
-                  motion_mode: pixMotion,
-                  first_frame_img: firstId,
-                  last_frame_img: lastId,
-                  seed: 0,
-                }
-                const gen = await fetch('/api/pixverse-generate', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify(body) })
-                const genText = await gen.text()
-                if (!gen.ok) throw new Error(genText)
-                const genJson = (() => { try { return JSON.parse(genText) } catch { return {} } })()
-                const videoId = genJson?.Resp?.video_id ?? genJson?.resp?.video_id
-                if (typeof videoId !== 'number') throw new Error('video_id 없음')
-
-                setPixStatus(`생성됨(${videoId}) — 진행상황 확인 중...`)
-                const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
-                let url = ''
-                for (let i=0;i<60;i++) {
-                  await delay(5000)
-                  const rr = await fetch(`/api/pixverse-result?id=${encodeURIComponent(String(videoId))}`, { headers: { 'x-user-pixverse-key': pixKey } })
-                  const tt = await rr.text()
-                  const jj = (() => { try { return JSON.parse(tt) } catch { return {} } })()
-                  const rawStatus = jj?.Resp?.status ?? jj?.resp?.status
-                  const statusNum = typeof rawStatus === 'number' ? rawStatus : (typeof rawStatus === 'string' ? parseInt(rawStatus, 10) : NaN)
-                  const resultUrl = jj?.Resp?.url ?? jj?.resp?.url
-                  if (statusNum === 1 && typeof resultUrl === 'string' && resultUrl) { url = resultUrl; break }
-                  if (statusNum === 5) { setPixStatus('상태: Generating(5)...'); continue }
-                  if (statusNum === 6 || statusNum === 7 || statusNum === 8) throw new Error(`실패(status=${statusNum}): ${tt}`)
-                  setPixStatus(`상태: ${String(rawStatus ?? '대기 중')}...`)
-                }
-                if (!url) throw new Error('타임아웃 또는 URL 없음')
-                setPixVideoUrl(url)
-                setPixStatus('완료')
-              } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e)
-                setPixStatus('에러: ' + msg)
-              }
-            }} className={`h-11 px-4 rounded-xl text-white font-medium transition-colors bg-purple-600 hover:bg-purple-500 active:bg-purple-700`}>전환 생성</button>
-            <p className="text-sm text-neutral-600 dark:text-neutral-300">{pixStatus}</p>
+            <button onClick={runPixTransition} disabled={!pixKey || !pixFirst || !pixLast} className={`h-11 px-4 rounded-xl text-white font-medium transition-colors ${!pixKey || !pixFirst || !pixLast ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700'}`}>Transition 생성</button>
+            <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">{pixStatus}</p>
           </div>
 
           {pixVideoUrl && (
-            <>
-              <video src={pixVideoUrl} controls className="mt-2 w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
+            <div className="mt-2">
+              <video src={pixVideoUrl} controls className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
               <div className="mt-2">
-                <button onClick={async () => {
-                  if (!pixVideoUrl || !pixKey || pixSaved) return
-                  try {
-                    // S3 업로드로 영구 저장
-                    const resp = await fetch(pixVideoUrl)
-                    if (resp.ok) {
-                      const blob = await resp.blob()
-                      const url = await preuploadBlobToPublicUrl(`pixverse-video-${Date.now()}.mp4`, blob.type || 'video/mp4', blob)
-                      const r = await fetch('/api/pixverse-save', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ prompt: pixPrompt, model: pixModel, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, video_url: url, thumb_url: null, metadata: {} }) })
-                      if (!r.ok) throw new Error(await r.text())
-                      setPixSaved(true)
-                      // 목록 갱신
-                      await refreshCreations()
-                    }
-                  } catch (e) {
-                    // noop
-                  }
-                }} disabled={pixSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
+                <button onClick={async () => { await fetch('/api/pixverse-save', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ prompt: pixPrompt, model: pixModel, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, video_url: pixVideoUrl }) }); setPixSaved(true); }} disabled={pixSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
               </div>
-            </>
+            </div>
+          )}
+
+          {/* --- 아래부터 i2v 블록 추가 --- */}
+          <div className="h-px bg-neutral-200 dark:bg-neutral-800 my-6" />
+          <h3 className="text-base font-medium">Pixverse Image → Video</h3>
+          <p className="text-xs text-neutral-500">업로드로 얻은 img_id를 사용해 i2v 영상을 생성합니다.</p>
+
+          {/* 업로드 to get img_id */}
+          <div className="grid gap-2 mt-2">
+            <label className="text-sm text-neutral-600 dark:text-neutral-300">이미지 업로드 (img_id 확보)</label>
+            <input id="pix-i2v-upload" type="file" accept="image/*" onChange={e => setPixI2vFile(e.target.files?.[0] || null)} className="hidden" />
+            <label htmlFor="pix-i2v-upload" role="button" tabIndex={0} className="inline-flex items-center justify-center h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 cursor-pointer">파일 선택</label>
+            <span className="text-sm text-neutral-600 dark:text-neutral-300">{pixI2vFile?.name || '선택된 파일 없음'}</span>
+            <div>
+              <button onClick={uploadPixI2v} disabled={!pixKey || !pixI2vFile || pixI2vUploading} className={`h-9 px-3 rounded-lg ${!pixKey || !pixI2vFile || pixI2vUploading ? 'bg-blue-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white'}`}>{pixI2vUploading ? '업로드 중...' : '업로드'}</button>
+              <span className="ml-2 text-sm text-neutral-600 dark:text-neutral-300">{pixI2vStatus}{pixI2vImgId ? ` (img_id: ${pixI2vImgId})` : ''}</span>
+            </div>
+          </div>
+
+          {/* 생성 파라미터 */}
+          <div className="grid sm:grid-cols-3 gap-3 mt-3">
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">model</label>
+              <select value={pixI2vModel} onChange={e => setPixI2vModel(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="v3.5">v3.5</option>
+                <option value="v4">v4</option>
+                <option value="v4.5">v4.5</option>
+                <option value="v5">v5</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">quality</label>
+              <select value={pixI2vQuality} onChange={e => setPixI2vQuality(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="360p">360p</option>
+                <option value="540p">540p</option>
+                <option value="720p">720p</option>
+                <option value="1080p">1080p</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">motion_mode</label>
+              <select value={pixI2vMotion} onChange={e => setPixI2vMotion(e.target.value)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="normal">normal</option>
+                <option value="fast">fast</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-1">
+            <div className="grid gap-2">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">duration</label>
+              <input type="number" min={5} max={8} value={pixI2vDuration} onChange={e => setPixI2vDuration(parseInt(e.target.value || '5', 10))} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">seed</label>
+              <input type="number" min={0} max={2147483647} value={pixI2vSeed} onChange={e => setPixI2vSeed(Math.max(0, Math.min(2147483647, parseInt(e.target.value || '0', 10))))} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" />
+            </div>
+          </div>
+          <div className="grid gap-2 mt-2">
+            <label className="inline-flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
+              <input type="checkbox" checked={pixI2vSoundSwitch} onChange={e => setPixI2vSoundSwitch(e.target.checked)} className="size-4" />
+              sound_effect_switch
+            </label>
+            <input
+              type="text"
+              value={pixI2vSoundContent}
+              onChange={e => setPixI2vSoundContent(e.target.value)}
+              placeholder="사운드 효과 설명(선택)"
+              className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20"
+            />
+            <p className="text-xs text-neutral-500">체크 시 Pixverse가 사운드 효과를 생성합니다. 내용이 비어있으면 영상 내용 기반으로 자동 생성됩니다.</p>
+          </div>
+          <label className="text-sm text-neutral-600 dark:text-neutral-300">prompt</label>
+          <textarea rows={3} value={pixI2vPrompt} onChange={e => setPixI2vPrompt(e.target.value)} placeholder="예) A cyberpunk city walk" className="rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" />
+
+          <div className="flex items-center gap-3 mt-2">
+            <button onClick={runPixI2v} disabled={!pixKey || !pixI2vImgId || pixI2vLoading} className={`h-11 px-4 rounded-xl text-white font-medium transition-colors ${!pixKey || !pixI2vImgId || pixI2vLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700'}`}>{pixI2vLoading ? '생성 중...' : '영상 생성'}</button>
+            <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">{pixI2vStatus}</p>
+          </div>
+
+          {pixI2vVideoUrl && (
+            <div className="mt-2">
+              <video src={pixI2vVideoUrl} controls className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
+              <div className="mt-2">
+                <button onClick={async () => { await fetch('/api/pixverse-save', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ prompt: pixI2vPrompt, model: pixI2vModel, duration: pixI2vDuration, quality: pixI2vQuality, motion_mode: pixI2vMotion, video_url: pixI2vVideoUrl }) }); setPixI2vSaved(true) }} disabled={pixI2vSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixI2vSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
+              </div>
+            </div>
           )}
         </div>
       </section>
