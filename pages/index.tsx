@@ -1403,6 +1403,7 @@ export default function Home() {
                   kind: 'video',
                   resource_url: c.video_url || '',
                   thumb_url: c.thumb_url || undefined,
+                  metadata: c.metadata,
                 })} className="group aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800">
                   {c.video_url ? (
                     <video src={c.video_url} className="w-full h-full object-cover group-hover:opacity-90" muted />
