@@ -43,3 +43,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 
+export const config = {
+  api: {
+    bodyParser: {
+      // dataURL(base64) 전송 특성상 원본보다 커집니다. 4.6MB 파일 대비 여유 있게 설정
+      sizeLimit: '30mb',
+    },
+  },
+}
+
+
