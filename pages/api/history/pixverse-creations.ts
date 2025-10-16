@@ -12,14 +12,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const keyHash = hashUserKey(String(userKey))
   const rows = db.prepare(`
-    SELECT id, created_at, prompt, model, duration, quality, motion_mode, video_url, thumb_url
+    SELECT id, created_at, prompt, model, duration, quality, motion_mode, video_url, thumb_url, metadata_json
     FROM pixverse_creations
     WHERE key_hash = ?
     ORDER BY datetime(created_at) DESC
     LIMIT ? OFFSET ?
-  `).all(keyHash, limit, offset)
+  `).all(keyHash, limit, offset) as Array<Record<string, unknown>>
 
-  return res.json({ items: rows })
+  const items = rows.map((r) => {
+    const mj = typeof r.metadata_json === 'string' ? r.metadata_json as string : null
+    let metadata: unknown = null
+    if (mj) {
+      try { metadata = JSON.parse(mj) } catch { metadata = mj }
+    }
+    const { metadata_json, ...rest } = r
+    return { ...rest, metadata }
+  })
+
+  return res.json({ items })
 }
 
 

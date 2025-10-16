@@ -224,7 +224,7 @@ export default function Home() {
 
   // 히스토리 (요청/생성물)
   type RequestItem = { id: number; created_at: string; provider: string; endpoint?: string; task_id?: string; status: string; error_message?: string | null }
-  type CreationItem = { id: number; created_at: string; provider: 'openai' | 'hailuo' | 'pixverse'; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null }
+  type CreationItem = { id: number; created_at: string; provider: 'openai' | 'hailuo' | 'pixverse'; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null; metadata?: unknown }
   const [reqOpenai, setReqOpenai] = useState<RequestItem[]>([])
   const [reqHailuo, setReqHailuo] = useState<RequestItem[]>([])
   const [creOpenai, setCreOpenai] = useState<CreationItem[]>([])
@@ -235,7 +235,7 @@ export default function Home() {
   const [pixReqOffset, setPixReqOffset] = useState(0)
   const [creOpenaiOffset, setCreOpenaiOffset] = useState(0)
   const [creHailuoOffset, setCreHailuoOffset] = useState(0)
-  const [pixCre, setPixCre] = useState<Array<{ id: number; created_at: string; prompt?: string | null; model?: string | null; duration?: number | null; quality?: string | null; motion_mode?: string | null; video_url?: string | null; thumb_url?: string | null }>>([])
+  const [pixCre, setPixCre] = useState<Array<{ id: number; created_at: string; prompt?: string | null; model?: string | null; duration?: number | null; quality?: string | null; motion_mode?: string | null; video_url?: string | null; thumb_url?: string | null; metadata?: unknown }>>([])
   const [pixCreOffset, setPixCreOffset] = useState(0)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [modal, setModal] = useState<CreationItem | null>(null)
@@ -1437,7 +1437,7 @@ export default function Home() {
               </div>
               <div className="text-xs">
                 <div className="font-semibold mb-2">메타데이터</div>
-                <pre className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 p-3 overflow-auto max-h-[60vh] whitespace-pre-wrap break-all">{JSON.stringify(modal, null, 2)}</pre>
+                <pre className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 p-3 overflow-auto max-h-[60vh] whitespace-pre-wrap break-all">{JSON.stringify(modal.metadata ? { ...modal, metadata: modal.metadata } : modal, null, 2)}</pre>
               </div>
             </div>
           </div>
