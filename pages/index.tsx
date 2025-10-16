@@ -112,10 +112,21 @@ export default function Home() {
 
   const saveCurrentPixTransition = async () => {
     if (!pixVideoUrl || !pixKey) return
+    let uploadUrl = pixVideoUrl
+    try {
+      const resp = await fetch(pixVideoUrl)
+      if (resp.ok) {
+        const blob = await resp.blob()
+        const guessedType = blob.type || 'video/mp4'
+        uploadUrl = await preuploadBlobToPublicUrl(`pixverse-video-${Date.now()}.mp4`, guessedType, blob)
+      }
+    } catch {
+      uploadUrl = pixVideoUrl
+    }
     await fetch('/api/pixverse-save', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey },
-      body: JSON.stringify({ prompt: pixPrompt, model: pixModel, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, video_url: pixVideoUrl, metadata: pixTransLastResp || {} })
+      body: JSON.stringify({ prompt: pixPrompt, model: pixModel, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, video_url: uploadUrl, thumb_url: undefined, metadata: pixTransLastResp || {} })
     })
     setPixSaved(true)
     void refreshCreations()
@@ -1212,7 +1223,7 @@ export default function Home() {
             <div className="mt-2">
               <video src={pixI2vVideoUrl} controls className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
               <div className="mt-2">
-                <button onClick={async () => { await fetch('/api/pixverse-save', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ prompt: pixI2vPrompt, model: pixI2vModel, duration: pixI2vDuration, quality: pixI2vQuality, motion_mode: pixI2vMotion, video_url: pixI2vVideoUrl, metadata: pixI2vLastResp || {} }) }); setPixI2vSaved(true) }} disabled={pixI2vSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixI2vSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
+                <button onClick={async () => { let uploadUrl = pixI2vVideoUrl; try { const resp = await fetch(pixI2vVideoUrl); if (resp.ok) { const blob = await resp.blob(); const guessedType = blob.type || 'video/mp4'; uploadUrl = await preuploadBlobToPublicUrl(`pixverse-i2v-${Date.now()}.mp4`, guessedType, blob); } } catch { uploadUrl = pixI2vVideoUrl } await fetch('/api/pixverse-save', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ prompt: pixI2vPrompt, model: pixI2vModel, duration: pixI2vDuration, quality: pixI2vQuality, motion_mode: pixI2vMotion, video_url: uploadUrl, thumb_url: undefined, metadata: pixI2vLastResp || {} }) }); setPixI2vSaved(true) }} disabled={pixI2vSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixI2vSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
               </div>
             </div>
           )}
