@@ -78,7 +78,7 @@ export default function Home() {
       if (!firstId || !lastId) { setPixStatus('업로드 실패: img_id 없음'); return }
       setPixStatus('태스크 생성 중...')
       const reqSeed = useManualSeed ? seed : Math.floor(Math.random() * 2147483647)
-      const body = { first_img_id: firstId, last_img_id: lastId, model: pixModel, prompt: pixPrompt, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, seed: reqSeed }
+      const body = { first_frame_img: firstId, last_frame_img: lastId, model: pixModel, prompt: pixPrompt, duration: pixDuration, quality: pixQuality, motion_mode: pixMotion, seed: reqSeed }
       setPixTransInput(body as Record<string, unknown>)
       const create = await fetch('/api/pixverse-generate', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify(body) })
       const createText = await create.text()
