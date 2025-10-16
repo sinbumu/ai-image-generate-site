@@ -54,6 +54,7 @@ export default function Home() {
   const runPixTransition = async () => {
     setPixStatus('업로드 중...')
     if (!pixKey || !pixFirst || !pixLast) { setPixStatus('키/이미지 필요'); return }
+    setPixSaved(false)
     try {
       // 업로드 first/last
       const toDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
@@ -184,6 +185,7 @@ export default function Home() {
     setPixI2vLoading(true)
     setPixI2vStatus('태스크 생성 중...')
     setPixI2vVideoUrl('')
+    setPixI2vSaved(false)
     try {
       const reqSeed = pixI2vUseManualSeed ? pixI2vSeed : Math.floor(Math.random() * 2147483647)
       const body: Record<string, unknown> = { duration: pixI2vDuration, img_id: pixI2vImgId, model: pixI2vModel, motion_mode: pixI2vMotion, prompt: pixI2vPrompt, quality: pixI2vQuality, seed: reqSeed }
@@ -1136,9 +1138,12 @@ export default function Home() {
           {pixVideoUrl && (
             <div className="mt-2">
               <video src={pixVideoUrl} controls className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
-              <div className="mt-2">
-                <button onClick={saveCurrentPixTransition} disabled={pixSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
-              </div>
+            <div className="mt-2 flex gap-2">
+              <button onClick={saveCurrentPixTransition} disabled={pixSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
+              {pixSaved && (
+                <button type="button" onClick={() => setPixSaved(false)} className="h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 text-sm">비활성 해제</button>
+              )}
+            </div>
             </div>
           )}
 
@@ -1226,8 +1231,11 @@ export default function Home() {
           {pixI2vVideoUrl && (
             <div className="mt-2">
               <video src={pixI2vVideoUrl} controls className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
-              <div className="mt-2">
+              <div className="mt-2 flex gap-2">
                 <button onClick={async () => { let uploadUrl = pixI2vVideoUrl; try { const resp = await fetch(pixI2vVideoUrl); if (resp.ok) { const blob = await resp.blob(); const guessedType = blob.type || 'video/mp4'; uploadUrl = await preuploadBlobToPublicUrl(`pixverse-i2v-${Date.now()}.mp4`, guessedType, blob); } } catch { uploadUrl = pixI2vVideoUrl } await fetch('/api/pixverse-save', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user-pixverse-key': pixKey }, body: JSON.stringify({ prompt: pixI2vPrompt, model: pixI2vModel, duration: pixI2vDuration, quality: pixI2vQuality, motion_mode: pixI2vMotion, video_url: uploadUrl, thumb_url: undefined, metadata: { resp: pixI2vLastResp || {}, input: pixI2vInput || {} } }) }); setPixI2vSaved(true) }} disabled={pixI2vSaved} className={`h-10 px-3 rounded-xl border text-sm ${pixI2vSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
+                {pixI2vSaved && (
+                  <button type="button" onClick={() => setPixI2vSaved(false)} className="h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 text-sm">비활성 해제</button>
+                )}
               </div>
             </div>
           )}
