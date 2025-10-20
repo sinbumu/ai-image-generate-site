@@ -21,6 +21,10 @@ S3_PREFIX=ai-media-toy/prod
 
 # 키 해시 솔트(서버 저장용)
 KEY_HASH_SALT=change_me
+
+# MIJI 템플릿 어드민 API 베이스 URL(프론트)
+NEXT_PUBLIC_MIIJ_DEV_BASE=https://prod-dev.cccv.to
+NEXT_PUBLIC_MIIJ_PROD_BASE=https://prod-renewal-cccv.cccv.to
 ```
 
 ### 로컬 개발
@@ -110,6 +114,25 @@ cd /home/ec2-user/ai-media-toy
 npm ci && npm run build
 NODE_ENV=production pm2 start "npm run start" --name ai-media-toy --update-env
 pm2 save
+```
+
+### 템플릿 어드민(/template) 사용법
+- 접근: 로컬 개발 서버에서 `/template` 접속
+- 환경 토글: 상단 드롭다운으로 `dev/prod` 전환, prod는 주의 배지 표시
+- 프레임 생성: `frameName`, `event`, `sampleImageUrl` 입력 후 이미지 업로드 → 생성
+- 스타일 관리:
+  - 목록에서 `수정`으로 편집 폼 자동 채움, `삭제`로 제거
+  - `styleType`이 GPT_HAILUO이면 `gptPromptList`, `gptSampleImageUrlList`, `hailuoPromptList`를 키-값 편집기로 입력
+  - 이미지/비디오 업로드는 presign 기반, 업로드 후 URL 자동 주입
+- 스냅샷/디프:
+  - dev에서 `dev 스냅샷 저장` → prod에서 `스냅샷과 PROD 비교`
+  - 프레임 추가 자동 적용, 스타일은 단순 업서트 버튼 제공(GPT_HAILUO 자동 매핑 지원)
+- 사용법 모달: 상단 `사용법?` 버튼
+
+환경 변수 요약
+```bash
+NEXT_PUBLIC_MIIJ_DEV_BASE=https://prod-dev.cccv.to
+NEXT_PUBLIC_MIIJ_PROD_BASE=https://prod-renewal-cccv.cccv.to
 ```
 
 ### EC2 배포 가이드(도커 미사용)

@@ -8,6 +8,17 @@ miji 서비스의 템플릿과 프레임을 생성-제거 하기 위한 어드�
 7. 새로운 프레임 생성, 새로운 스타일 생성 시에는 각각 버튼을 누르면 모달창이 뜨고, 모달창에 필수 입력사항들 기입후 컨펌하면 생성하게 할 생각
 8. 기존 스타일을 수정하고 싶을 경우에는... 개인적으로 리스트에서 클릭시 수정이 되면 편하겠지만. 일단은 기존 스타일 수정 버튼을 누르고, 거기다 스타일 이름을 입력할경우, 전체조회 요청을 해서, 해당 스타일이 있나 찾고 있으면 그 데이터를 인풋에 채우고 수정하는 식으로.
 
+고민사항
+1. 어떤식으로 구현해야 사용자가 새로운 프레임과 스타일을 편하게 추가/수정 가능할까?
+2. 어드민에서 일차적으로는 'GET /v1/api/photo-card/template/admin/ai-frame-template'을 호출해서 모든 프레임-스타일 데이터를 가져오기로 했는데 이거를 웹사이트에서 정렬이나 필터로 볼 수 있게 만드는거 쉽게 가능?
+3. dev에서 작업한 프레임-스타일에 대해서 웹페이지에서 임시로(새로고침하면 사라져도 됨) 스냅샷을 뜬 뒤에, prod에 해당 스냅샷을 추가할 수 있는 기능 같은거 있으면 편할텐데 쉽게 될까
+
+API 서버 주소
+
+dev api : https://prod-dev.cccv.to
+
+prod api : https://prod-renewal-cccv.cccv.to
+
 API 목록
 
 '''
@@ -187,7 +198,7 @@ res 503
 
 '''
 POST /v1/api/photo-card/template/admin/ai-frame-template/style
-AI 프레임 템플릿 생성
+AI 프레임 템플릿에 포토카드 스타일 추가 또는 업데이트
 
 req body
 
@@ -333,3 +344,15 @@ req body
   "uuid": "string"
 }
 '''
+
+---
+
+주의사항 : 'POST /v1/api/photo-card/template/admin/ai-frame-template/style' 사용시
+
+styleType 이 GPT_HAILUO 일때는 
+gptPromptList
+gptSampleImageUrlList
+hailuoPromptList
+3가지 필드를 채워야 함
+
+최외곽 prompt 필드는 styleType이 PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO 일때만 필요.
