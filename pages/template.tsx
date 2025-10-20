@@ -13,46 +13,46 @@ import {
 } from '../src/lib/mijiTemplateClient'
 import { computeDiff, FrameDiff, buildGptHailuoFromDev } from '../src/lib/mijiDiff'
 
-// 공통 UI 스타일
+// 공통 UI 스타일(라이트/다크 공용 CSS 변수 사용)
 const ui = {
   label: { display: 'grid', gap: 4 } as React.CSSProperties,
   input: {
     padding: '8px 10px',
-    border: '1px solid #2a2f3a',
+    border: '1px solid var(--border)',
     borderRadius: 8,
-    background: '#0f1218',
-    color: '#e6e6e6',
+    background: 'var(--field-bg)',
+    color: 'var(--text)',
   } as React.CSSProperties,
   select: {
     padding: '8px 10px',
-    border: '1px solid #2a2f3a',
+    border: '1px solid var(--border)',
     borderRadius: 8,
-    background: '#0f1218',
-    color: '#e6e6e6',
+    background: 'var(--field-bg)',
+    color: 'var(--text)',
   } as React.CSSProperties,
   textarea: {
     padding: '8px 10px',
-    border: '1px solid #2a2f3a',
+    border: '1px solid var(--border)',
     borderRadius: 8,
-    background: '#0f1218',
-    color: '#e6e6e6',
+    background: 'var(--field-bg)',
+    color: 'var(--text)',
     minHeight: 88,
   } as React.CSSProperties,
   button: {
     padding: '8px 12px',
-    border: '1px solid #2a2f3a',
+    border: '1px solid var(--border)',
     borderRadius: 8,
-    background: '#1a73e8',
-    color: '#fff',
+    background: 'var(--primary)',
+    color: 'var(--on-primary)',
     fontWeight: 600,
     cursor: 'pointer',
   } as React.CSSProperties,
   buttonGhost: {
     padding: '8px 12px',
-    border: '1px solid #2a2f3a',
+    border: '1px solid var(--border)',
     borderRadius: 8,
-    background: 'transparent',
-    color: '#e6e6e6',
+    background: 'var(--ghost-bg)',
+    color: 'var(--text)',
     cursor: 'pointer',
   } as React.CSSProperties,
   table: {
@@ -63,20 +63,21 @@ const ui = {
   th: {
     textAlign: 'left',
     padding: 8,
-    background: '#0b0f15',
-    borderBottom: '1px solid #222a35',
+    background: 'var(--th-bg)',
+    borderBottom: '1px solid var(--border)',
     position: 'sticky',
     top: 0,
   } as React.CSSProperties,
   td: {
     padding: 8,
-    borderBottom: '1px solid #1b2430',
+    borderBottom: '1px solid var(--table-border)',
   } as React.CSSProperties,
   card: {
-    border: '1px solid #1b2430',
+    border: '1px solid var(--border)',
     borderRadius: 12,
     padding: 12,
-    background: '#0a0e14',
+    background: 'var(--card-bg)',
+    color: 'var(--text)',
   } as React.CSSProperties,
 }
 

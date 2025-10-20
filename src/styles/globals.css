@@ -1,3 +1,36 @@
+/* 라이트/다크 모드용 CSS 변수 */
+:root {
+  --bg: #ffffff;
+  --text: #0b0f15;
+  --card-bg: #ffffff;
+  --field-bg: #f8fafc;
+  --ghost-bg: transparent;
+  --border: #d1d9e6;
+  --table-border: #e5eaf1;
+  --th-bg: #f1f5f9;
+  --primary: #1a73e8;
+  --on-primary: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #090d12;
+    --text: #e6e6e6;
+    --card-bg: #0a0e14;
+    --field-bg: #0f1218;
+    --ghost-bg: #0f1218;
+    --border: #1b2430;
+    --table-border: #1b2430;
+    --th-bg: #0b0f15;
+    --primary: #1a73e8;
+    --on-primary: #ffffff;
+  }
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+}
 @import "tailwindcss";
 
 :root {
