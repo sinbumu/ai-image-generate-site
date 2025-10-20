@@ -42,6 +42,8 @@ export interface AiFrameTemplate {
   dbId: string
   event: boolean
   id?: string
+  // 응답 확장 필드(스펙 업데이트)
+  styleType?: string
   keyword: string[]
   lockVersion: number
   name: string
@@ -137,8 +139,8 @@ export async function createFrame(
   const body = {
     event: params.event,
     sampleImageUrl: params.sampleImageUrl,
-    // 서버 스펙상 프레임 이름이 style 필드로 전송되어야 함
-    style: params.frameName,
+    // 스펙 변경: frameName 필드 사용
+    frameName: params.frameName,
   }
   const res = await fetch(url, {
     method: 'POST',
@@ -159,7 +161,8 @@ export async function deleteFrame(baseUrl: string, frameName: string, init?: Req
   const res = await fetch(url, {
     method: 'DELETE',
     headers: { ...defaultHeaders, ...(init?.headers as JsonHeaders) },
-    body: JSON.stringify({ style: frameName }),
+    // 스펙 변경: frameName 필드 사용
+    body: JSON.stringify({ frameName }),
     ...init,
   })
   if (!res.ok) {
@@ -213,7 +216,8 @@ export async function deleteStyle(
   const res = await fetch(url, {
     method: 'DELETE',
     headers: { ...defaultHeaders, ...(init?.headers as JsonHeaders) },
-    body: JSON.stringify({ name: styleName, style: frameName }),
+    // 스펙 변경: frameName, styleName 사용
+    body: JSON.stringify({ frameName, styleName }),
     ...init,
   })
   if (!res.ok) {

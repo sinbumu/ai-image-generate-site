@@ -28,7 +28,7 @@ DELETE /v1/api/photo-card/template/admin/ai-frame-template
 req body
 
 {
-  "style": "string"
+  "frameName": "string"
 }
 
 res 200
@@ -59,6 +59,7 @@ res 200
 {
   "data": [
     {
+      "styleType":"string",
       "available": true,
       "createdAt": "2025-10-17T09:31:05.399Z",
       "dbId": "string",
@@ -138,7 +139,7 @@ req body
 {
   "event": false,
   "sampleImageUrl": "string",
-  "style": "string"
+  "frameName": "string"
 }
 
 req body description
@@ -150,7 +151,7 @@ default: false
 event 용인지 설정
 
 sampleImageUrl*	string
-style*	string //** 서버개발자가 이상하게 해놔서 주의. 이 필드에 프레임 이름이 들어간다.
+frameName*	string
 }
 
 res 200
@@ -177,8 +178,8 @@ DELETE /v1/api/photo-card/template/admin/ai-frame-template/style
 req body
 
 {
-  "name": "string",
-  "style": "string" //**주의 서버를 이상하게 만들어놔서 여기 프레임 이름이 들어가야 함. 스타일이름은 위에 name에 들어감.
+  "frameName": "string", //Frame의 이름
+  "styleName": "string" //style의 이름
 }
 
 res 200
@@ -356,3 +357,20 @@ hailuoPromptList
 3가지 필드를 채워야 함
 
 최외곽 prompt 필드는 styleType이 PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO 일때만 필요.
+
+---
+request field가 변하는 api들
+
+POST  /v1/api/photo-card/template/admin/ai-frame-template
+style -> frameName
+
+DELETE  /v1/api/photo-card/template/admin/ai-frame-template
+style -> frameName
+
+DELETE  /v1/api/photo-card/template/admin/ai-frame-template/style
+name -> frameName
+style -> styleName
+
+response field가 추가되거나 변하는 api
+GET /v1/api/photo-card/template/admin/ai-frame-template
+item에 styleType 필드값 추가.
