@@ -29,6 +29,11 @@ export interface TemplateStyle {
   name: string
   styleImageUrl: string
   styleVideoUrl: string
+  // 서버 응답에 포함될 수 있는 확장 필드들 (GET 전용)
+  prompt?: string
+  gptPrompt?: { name?: string | null; prompt: string }[]
+  gptSampleImageUrlList?: { imageUrl: string[]; sampleCount: number; name?: string | null }[]
+  hailuoPrompt?: { name?: string | null; prompt: string }[]
 }
 
 export interface AiFrameTemplate {

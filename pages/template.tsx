@@ -453,10 +453,10 @@ function StyleTable({ frameName, styles, baseUrl, onChanged }: { frameName: stri
           styleVideoUrl: editing.styleVideoUrl,
           displayPrompt: editing.displayPrompt || '',
           // 서버 응답 확장 필드
-          prompt: (editing as any).prompt || '',
-          gptPrompt: Array.isArray((editing as any).gptPrompt) ? (editing as any).gptPrompt : undefined,
-          gptSampleImageUrlList: Array.isArray((editing as any).gptSampleImageUrlList) ? (editing as any).gptSampleImageUrlList : undefined,
-          hailuoPrompt: Array.isArray((editing as any).hailuoPrompt) ? (editing as any).hailuoPrompt : undefined,
+          prompt: editing.prompt || '',
+          gptPrompt: Array.isArray(editing.gptPrompt) ? editing.gptPrompt : undefined,
+          gptSampleImageUrlList: Array.isArray(editing.gptSampleImageUrlList) ? editing.gptSampleImageUrlList : undefined,
+          hailuoPrompt: Array.isArray(editing.hailuoPrompt) ? editing.hailuoPrompt : undefined,
         } : undefined}
         onCancelEdit={() => setEditing(null)}
       />
@@ -489,7 +489,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
     if (initial.gptPrompt) setGptPromptList(initial.gptPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
     if (initial.gptSampleImageUrlList) setGptSampleImageUrlList(initial.gptSampleImageUrlList.map((x) => ({ name: (x.name || undefined), imageUrl: x.imageUrl, sampleCount: x.sampleCount })))
     if (initial.hailuoPrompt) setHailuoPromptList(initial.hailuoPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
-  }, [initial?.styleName, initial?.imageUploadInfoType, initial?.styleImageUrl, initial?.styleVideoUrl, initial?.displayPrompt])
+  }, [initial])
 
   const requiresGptFields = styleType === 'GPT_HAILUO'
   const requiresPrompt = styleType === 'PIXVERSE' || styleType === 'PIXVERSE_IMAGE_TO_VIDEO'
