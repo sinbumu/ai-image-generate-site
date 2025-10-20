@@ -29,6 +29,9 @@ export interface TemplateStyle {
   name: string
   styleImageUrl: string
   styleVideoUrl: string
+  // 응답 추가 필드
+  styleType?: StyleType
+  order?: number
   // 서버 응답에 포함될 수 있는 확장 필드들 (GET 전용)
   prompt?: string
   gptPrompt?: { name?: string | null; prompt: string }[]
@@ -62,6 +65,7 @@ export interface CreateFrameParams {
   frameName: string
   event: boolean
   sampleImageUrl: string
+  order?: number
 }
 
 export interface UpsertStyleParams {
@@ -71,6 +75,7 @@ export interface UpsertStyleParams {
   imageUploadInfoType: ImageUploadInfoType
   styleImageUrl: string
   styleVideoUrl: string
+  order?: number
   // 선택 필드
   displayPrompt?: string
   prompt?: string
@@ -141,6 +146,7 @@ export async function createFrame(
     sampleImageUrl: params.sampleImageUrl,
     // 스펙 변경: frameName 필드 사용
     frameName: params.frameName,
+    order: params.order ?? 0,
   }
   const res = await fetch(url, {
     method: 'POST',
@@ -190,6 +196,7 @@ export async function upsertStyle(
     styleName: params.styleName,
     styleType: params.styleType,
     styleVideoUrl: params.styleVideoUrl,
+    order: params.order ?? 0,
   }
   const res = await fetch(url, {
     method: 'POST',

@@ -59,9 +59,8 @@ res 200
 {
   "data": [
     {
-      "styleType":"string",
       "available": true,
-      "createdAt": "2025-10-17T09:31:05.399Z",
+      "createdAt": "2025-10-20T09:18:57.352Z",
       "dbId": "string",
       "event": true,
       "id": "string",
@@ -80,11 +79,17 @@ res 200
           "displayPrompt": "string",
           "imageUploadInfoType": "DEFAULT",
           "name": "string",
+          "order": 0,
           "styleImageUrl": "string",
-          "styleVideoUrl": "string"
+          "styleVideoUrl": "string",
+          "prompt":"string",
+          "displayPrompt":"string",
+          "imageUploadInfoType": "string",
+          "order": 0,
+          "styleType": "string"
         }
       ],
-      "updatedAt": "2025-10-17T09:31:05.400Z"
+      "updatedAt": "2025-10-20T09:18:57.352Z"
     }
   ]
 }
@@ -138,8 +143,9 @@ req body
 
 {
   "event": false,
-  "sampleImageUrl": "string",
-  "frameName": "string"
+  "frameName": "string",
+  "order": 0,
+  "sampleImageUrl": "string"
 }
 
 req body description
@@ -150,8 +156,9 @@ example: false
 default: false
 event 용인지 설정
 
-sampleImageUrl*	string
 frameName*	string
+order*	integer($int32)
+sampleImageUrl*	string
 }
 
 res 200
@@ -228,6 +235,7 @@ req body
     }
   ],
   "imageUploadInfoType": "DEFAULT",
+  "order": 0,
   "prompt": "string",
   "styleImageUrl": "string",
   "styleName": "string",
@@ -279,7 +287,8 @@ imageUploadInfoType*	string
 이미지 업로드 안내 문구 타입 지정
 
 Enum:
-[ DEFAULT, PIXEL ]
+Array [ 2 ]
+order	integer($int32)
 prompt	string
 PIXVERSE
 
@@ -293,7 +302,7 @@ styleType*	string
 스타일 종류
 
 Enum:
-[ GPT_HAILUO, PIXVERSE ]
+[ GPT_HAILUO, PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO ]
 styleVideoUrl*	string
 스타일 샘플 비디오
 
@@ -374,3 +383,16 @@ style -> styleName
 response field가 추가되거나 변하는 api
 GET /v1/api/photo-card/template/admin/ai-frame-template
 item에 styleType 필드값 추가.
+---
+request field가 변하는 api들 2
+
+POST  /v1/api/photo-card/template/admin/ai-frame-template
++ order (필드 추가)
+
+response field가 추가되거나 변하는 api
+GET /v1/api/photo-card/template/admin/ai-frame-template
+item에 styleList.styleType 필드값 추가.
+item에 styleList.order 필드값 추가.
+
+POST  /v1/api/photo-card/template/admin/ai-frame-template/style
+order

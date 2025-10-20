@@ -60,6 +60,8 @@ export function computeDiff(dev: AiFrameTemplate[], prod: AiFrameTemplate[]): Fr
       if (a.imageUploadInfoType !== b.imageUploadInfoType) changed.push('imageUploadInfoType')
       if (a.styleImageUrl !== b.styleImageUrl) changed.push('styleImageUrl')
       if (a.styleVideoUrl !== b.styleVideoUrl) changed.push('styleVideoUrl')
+      if ((a.styleType || '') !== (b.styleType || '')) changed.push('styleType')
+      if ((a.order || 0) !== (b.order || 0)) changed.push('order')
       // back/background url도 포함
       if (a.backImageUrl !== b.backImageUrl) changed.push('backImageUrl')
       if (a.backgroundImageUrl !== b.backgroundImageUrl) changed.push('backgroundImageUrl')

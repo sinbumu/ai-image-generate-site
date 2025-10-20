@@ -167,7 +167,7 @@ export default function TemplateAdminPage() {
         )}
 
         <section style={{ display: 'grid', gap: 16 }}>
-          {data.map((f) => (
+          {useMemo(() => [...data].sort((a, b) => (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name)), [data]).map((f) => (
             <FrameCard key={f.dbId} frame={f} env={env} baseUrl={baseUrl} onChanged={() => {
               setLoading(true)
               getAllTemplates(baseUrl).then(setData).finally(() => setLoading(false))
@@ -244,6 +244,7 @@ function FrameCreator({ baseUrl, onCreated }: { baseUrl: string; onCreated: () =
   const [frameName, setFrameName] = useState('')
   const [event, setEvent] = useState(false)
   const [sampleImageUrl, setSampleImageUrl] = useState('')
+  const [order, setOrder] = useState<number>(0)
   const [busy, setBusy] = useState(false)
 
   async function handleCreate() {
@@ -253,10 +254,11 @@ function FrameCreator({ baseUrl, onCreated }: { baseUrl: string; onCreated: () =
     }
     setBusy(true)
     try {
-      await createFrame(baseUrl, { frameName, event, sampleImageUrl })
+      await createFrame(baseUrl, { frameName, event, sampleImageUrl, order })
       setFrameName('')
       setEvent(false)
       setSampleImageUrl('')
+      setOrder(0)
       onCreated()
     } catch (e) {
       alert((e as Error).message)
@@ -282,6 +284,10 @@ function FrameCreator({ baseUrl, onCreated }: { baseUrl: string; onCreated: () =
           <input style={ui.input} value={sampleImageUrl} onChange={(e) => setSampleImageUrl(e.target.value)} placeholder="https://..." />
         </label>
         <Uploader label="이미지 업로드" accept="image/*" onUploaded={(url) => setSampleImageUrl(url)} />
+        <label style={ui.label}>
+          <span>order</span>
+          <input style={{ ...ui.input, width: 120 }} type="number" value={order} onChange={(e) => setOrder(Number(e.target.value || 0))} />
+        </label>
         <button style={ui.button} onClick={handleCreate} disabled={busy}>프레임 생성</button>
       </div>
     </div>
@@ -422,6 +428,8 @@ function StyleTable({ frameName, styles, baseUrl, onChanged }: { frameName: stri
         <thead>
           <tr>
             <th style={ui.th}>styleName</th>
+            <th style={ui.th}>styleType</th>
+            <th style={ui.th}>order</th>
             <th style={ui.th}>imageUploadInfoType</th>
             <th style={ui.th}>styleImage</th>
             <th style={ui.th}>styleVideo</th>
@@ -429,9 +437,11 @@ function StyleTable({ frameName, styles, baseUrl, onChanged }: { frameName: stri
           </tr>
         </thead>
         <tbody>
-          {styles.map((s, idx) => (
+          {[...styles].sort((a, b) => (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name)).map((s, idx) => (
             <tr key={`${frameName}:${s.name}:${s.styleImageUrl}:${s.styleVideoUrl}:${idx}`}>
               <td style={ui.td}>{s.name}</td>
+              <td style={ui.td}>{s.styleType || '-'}</td>
+              <td style={ui.td}>{(s.order ?? 0)}</td>
               <td style={ui.td}>{s.imageUploadInfoType}</td>
               <td style={ui.td}><a href={s.styleImageUrl} target="_blank" rel="noreferrer">image</a></td>
               <td style={ui.td}><a href={s.styleVideoUrl} target="_blank" rel="noreferrer">video</a></td>
@@ -458,6 +468,8 @@ function StyleTable({ frameName, styles, baseUrl, onChanged }: { frameName: stri
           gptPrompt: Array.isArray(editing.gptPrompt) ? editing.gptPrompt : undefined,
           gptSampleImageUrlList: Array.isArray(editing.gptSampleImageUrlList) ? editing.gptSampleImageUrlList : undefined,
           hailuoPrompt: Array.isArray(editing.hailuoPrompt) ? editing.hailuoPrompt : undefined,
+          styleType: (editing.styleType as any) || undefined,
+          order: editing.order ?? 0,
         } : undefined}
         onCancelEdit={() => setEditing(null)}
       />
@@ -465,7 +477,7 @@ function StyleTable({ frameName, styles, baseUrl, onChanged }: { frameName: stri
   )
 }
 
-function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { frameName: string; baseUrl: string; onSaved: () => void; initial?: { styleName: string; imageUploadInfoType: ImageUploadInfoType; styleImageUrl: string; styleVideoUrl: string; displayPrompt: string; prompt?: string; gptPrompt?: { name?: string | null; prompt: string }[]; gptSampleImageUrlList?: { imageUrl: string[]; sampleCount: number; name?: string | null }[]; hailuoPrompt?: { name?: string | null; prompt: string }[] }; onCancelEdit?: () => void }) {
+function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { frameName: string; baseUrl: string; onSaved: () => void; initial?: { styleName: string; imageUploadInfoType: ImageUploadInfoType; styleImageUrl: string; styleVideoUrl: string; displayPrompt: string; prompt?: string; gptPrompt?: { name?: string | null; prompt: string }[]; gptSampleImageUrlList?: { imageUrl: string[]; sampleCount: number; name?: string | null }[]; hailuoPrompt?: { name?: string | null; prompt: string }[]; styleType?: StyleType; order?: number }; onCancelEdit?: () => void }) {
   const [styleName, setStyleName] = useState('')
   const [styleType, setStyleType] = useState<StyleType>('GPT_HAILUO')
   const [imageUploadInfoType, setImageUploadInfoType] = useState<ImageUploadInfoType>('DEFAULT')
@@ -476,6 +488,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
   const [gptPromptList, setGptPromptList] = useState<{ name?: string; prompt: string }[]>([])
   const [gptSampleImageUrlList, setGptSampleImageUrlList] = useState<{ name?: string; imageUrl: string[]; sampleCount: number }[]>([])
   const [hailuoPromptList, setHailuoPromptList] = useState<{ name?: string; prompt: string }[]>([])
+  const [order, setOrder] = useState<number>(0)
   const [busy, setBusy] = useState(false)
 
   // 초기값이 바뀌면 편집 모드로 필드 채우기
@@ -490,6 +503,8 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
     if (initial.gptPrompt) setGptPromptList(initial.gptPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
     if (initial.gptSampleImageUrlList) setGptSampleImageUrlList(initial.gptSampleImageUrlList.map((x) => ({ name: (x.name || undefined), imageUrl: x.imageUrl, sampleCount: x.sampleCount })))
     if (initial.hailuoPrompt) setHailuoPromptList(initial.hailuoPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
+    setOrder(initial.order ?? 0)
+    if (initial.styleType) setStyleType(initial.styleType)
   }, [initial])
 
   const requiresGptFields = styleType === 'GPT_HAILUO'
@@ -514,6 +529,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
         gptPromptList: gptPromptArr,
         gptSampleImageUrlList: gptSampleArr,
         hailuoPromptList: hailuoArr,
+        order,
       })
       onSaved()
       setStyleName('')
@@ -608,6 +624,10 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
             />
           </div>
         )}
+        <label style={ui.label}>
+          <span>order</span>
+          <input style={{ ...ui.input, width: 120 }} type="number" value={order} onChange={(e) => setOrder(Number(e.target.value || 0))} />
+        </label>
         <div>
           <button style={ui.button} onClick={handleSave} disabled={busy}>저장</button>
           {initial && (
