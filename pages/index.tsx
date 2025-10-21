@@ -354,6 +354,7 @@ export default function Home() {
   const [pixCreOffset, setPixCreOffset] = useState(0)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [modal, setModal] = useState<CreationItem | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
 
   const formatKST = (s: string) =>
     new Intl.DateTimeFormat('ko-KR', {
@@ -838,9 +839,17 @@ export default function Home() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 font-sans">
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">GPT 이미지 편집 & Hailuo 영상 생성</h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">프록시를 통해 키를 저장하지 않고 안전하게 중계합니다.</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">AI 이미지 편집 & 생성</h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">프록시를 통해 키를 저장하지 않고 안전하게 중계합니다.</p>
+        </div>
+        <button
+          onClick={() => setShowHelp(true)}
+          className="h-9 px-3 rounded-lg border border-neutral-300 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        >
+          사용법
+        </button>
       </div>
 
       <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mb-6">
@@ -1463,7 +1472,7 @@ export default function Home() {
             </div>
           </div>
           <div>
-            <div className="text-sm font-semibold mb-2">Hailuo</div>
+            <div className="text-sm font-semibold mb-2">Piapi</div>
             <ul className="space-y-2 text-sm">
               {reqHailuo.map(item => (
                 <li key={`h-${item.id}`} className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-3">
@@ -1642,6 +1651,27 @@ export default function Home() {
                 <div className="font-semibold mb-2">메타데이터</div>
                 <pre className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 p-3 overflow-auto max-h-[60vh] whitespace-pre-wrap break-all">{JSON.stringify(modal.metadata ? { ...modal, metadata: modal.metadata } : modal, null, 2)}</pre>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowHelp(false)}>
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl max-w-2xl w-full p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-3">
+              <div className="text-sm text-neutral-600 dark:text-neutral-300">사용법</div>
+              <button onClick={() => setShowHelp(false)} className="h-8 px-3 rounded border border-neutral-300 dark:border-neutral-700 text-sm">닫기</button>
+            </div>
+            <div className="text-sm space-y-3 text-neutral-700 dark:text-neutral-200">
+              <p>상단에 키를 저장하면 각 기능이 활성화됩니다.</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>OpenAI: GPT 이미지 편집 — 다중 이미지, background/size/quality 지원</li>
+                <li>Piapi: 영상 생성 — i2v는 이미지 업로드 또는 URL 필요, 완료 후 저장</li>
+                <li>Pixverse: Transition과 Image→Video — 업로드로 img_id 확보 후 생성, 저장 시 메타데이터 포함</li>
+                <li>Nanobanana(Gemini): 텍스트 프롬프트(옵션: image_urls, output_format, aspect_ratio)로 이미지 생성</li>
+                <li>S3/R2 업로드: 개별 이미지 업로드 및 리스트 조회 가능</li>
+              </ul>
+              <p>저장 버튼은 중복 저장 방지를 위해 1회 비활성화됩니다. 필요 시 ‘비활성 해제’를 눌러 재저장할 수 있습니다.</p>
             </div>
           </div>
         </div>
