@@ -577,7 +577,7 @@ function StyleTable({ frameName, styles, baseUrl, onChanged }: { frameName: stri
           gptPrompt: Array.isArray(editing.gptPrompt) ? editing.gptPrompt : undefined,
           gptSampleImageUrlList: Array.isArray(editing.gptSampleImageUrlList) ? editing.gptSampleImageUrlList : undefined,
           hailuoPrompt: Array.isArray(editing.hailuoPrompt) ? editing.hailuoPrompt : undefined,
-          styleType: (editing.styleType as any) || undefined,
+          styleType: editing.styleType || undefined,
           order: editing.order ?? 0,
         } : undefined}
         onCancelEdit={() => setEditing(null)}
