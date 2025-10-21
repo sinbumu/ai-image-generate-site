@@ -155,6 +155,117 @@ export default function Home() {
   const [pixI2vLastResp, setPixI2vLastResp] = useState<Record<string, unknown> | null>(null)
   const [pixI2vInput, setPixI2vInput] = useState<Record<string, unknown> | null>(null)
 
+  // Nanobanana (Gemini 2.5 Flash Image)
+  const [gemPrompt, setGemPrompt] = useState('')
+  const [gemFormat, setGemFormat] = useState<'jpeg' | 'png'>('jpeg')
+  const [gemAR, setGemAR] = useState<'21:9' | '1:1' | '4:3' | '3:2' | '2:3' | '5:4' | '4:5' | '3:4' | '16:9' | '9:16'>('1:1')
+  const [gemImageUrls, setGemImageUrls] = useState<string[]>([])
+  const [gemNewUrl, setGemNewUrl] = useState('')
+  const [gemImages, setGemImages] = useState<string[]>([])
+  const [gemStatus, setGemStatus] = useState('')
+  const [gemLoading, setGemLoading] = useState(false)
+  const [gemSaved, setGemSaved] = useState(false)
+  const [gemLastResp, setGemLastResp] = useState<Record<string, unknown> | null>(null)
+  const [gemLastInput, setGemLastInput] = useState<Record<string, unknown> | null>(null)
+
+  const runGemini = async () => {
+    if (!piapiKey || !gemPrompt.trim()) { setGemStatus('PIAPI 키/프롬프트 필수'); return }
+    setGemLoading(true)
+    setGemSaved(false)
+    setGemImages([])
+    setGemStatus('태스크 생성 중...')
+    try {
+      const body = {
+        model: 'gemini',
+        task_type: 'gemini-2.5-flash-image',
+        input: {
+          prompt: gemPrompt,
+          output_format: gemFormat,
+          aspect_ratio: gemAR,
+          ...(gemImageUrls.length ? { image_urls: gemImageUrls } : {}),
+        },
+        config: { service_mode: 'public' },
+      }
+      setGemLastInput(body as Record<string, unknown>)
+      const create = await fetch('/api/piapi-task', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-user-piapi-key': piapiKey },
+        body: JSON.stringify(body),
+      })
+      const ct = await create.text()
+      if (!create.ok) throw new Error(ct)
+      const safeParse = (t: string): Record<string, unknown> | string => { try { return JSON.parse(t) } catch { return t } }
+      const created = safeParse(ct)
+      const get = (obj: unknown, path: string[]): unknown => { let cur: unknown = obj; for (const k of path) { if (typeof cur !== 'object' || cur === null) return undefined; cur = (cur as Record<string, unknown>)[k] } return cur }
+      const taskId = typeof created === 'object' ? (get(created, ['data','task_id']) || get(created, ['task_id'])) : undefined
+      if (!taskId || typeof taskId !== 'string') throw new Error('task_id 없음')
+      setGemStatus('폴링 중...')
+      const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
+      let done = false
+      let finalUrls: string[] = []
+      for (let i = 0; i < 60 && !done; i++) {
+        await delay(i < 2 ? 30000 : 10000)
+        const r = await fetch(`/api/piapi-task?id=${encodeURIComponent(taskId)}`, { headers: { 'x-user-piapi-key': piapiKey } })
+        const tt = await r.text()
+        if (!r.ok) throw new Error(tt)
+        const pr = safeParse(tt)
+        if (typeof pr !== 'object' || pr === null) { setGemStatus('예상치 못한 응답'); continue }
+        const status = get(pr, ['data','status']) || get(pr, ['status'])
+        if (status === 'success' || status === 'completed' || status === 'Completed') {
+          const urls = get(pr, ['data','output','image_urls']) || get(pr, ['output','image_urls'])
+          if (Array.isArray(urls) && urls.length) {
+            finalUrls = urls.filter((x: unknown) => typeof x === 'string') as string[]
+          }
+          setGemLastResp(pr as Record<string, unknown>)
+          done = true
+          break
+        }
+        if (status === 'failed' || status === 'Failed') throw new Error('생성 실패')
+        setGemStatus(`상태: ${String(status || '대기 중')}...`)
+      }
+      if (!finalUrls.length) throw new Error('완료됐지만 image_urls 없음')
+      setGemImages(finalUrls)
+      setGemStatus('완료')
+    } catch (e) {
+      setGemStatus('에러: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setGemLoading(false)
+    }
+  }
+
+  const saveCurrentGemini = async () => {
+    if (!gemImages.length) return
+    if (!piapiKey) throw new Error('PIAPI 키가 필요합니다')
+    if (gemSaved) return
+    let urlToSave = gemImages[0]
+    try {
+      const resp = await fetch(urlToSave)
+      if (resp.ok) {
+        const blob = await resp.blob()
+        const guessedType = blob.type || 'image/' + gemFormat
+        urlToSave = await preuploadBlobToPublicUrl(`nanobanana-${Date.now()}.${gemFormat}`, guessedType, blob)
+      }
+    } catch {
+      // 원본 URL로 저장
+    }
+    const resp = await fetch('/api/save-creation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-user-piapi-key': piapiKey },
+      body: JSON.stringify({
+        provider: 'nanobanana',
+        kind: 'image',
+        prompt: gemPrompt,
+        model: 'gemini',
+        resource_url: urlToSave,
+        thumb_url: urlToSave,
+        metadata: { resp: gemLastResp || {}, input: gemLastInput || {} },
+      }),
+    })
+    if (!resp.ok) throw new Error(await resp.text())
+    refreshCreations()
+    setGemSaved(true)
+  }
+
   const uploadPixI2v = async () => {
     if (!pixKey || !pixI2vFile) return
     try {
@@ -226,17 +337,19 @@ export default function Home() {
 
   // 히스토리 (요청/생성물)
   type RequestItem = { id: number; created_at: string; provider: string; endpoint?: string; task_id?: string; status: string; error_message?: string | null }
-  type CreationItem = { id: number; created_at: string; provider: 'openai' | 'hailuo' | 'pixverse'; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null; metadata?: unknown }
+  type CreationItem = { id: number; created_at: string; provider: 'openai' | 'hailuo' | 'pixverse' | 'nanobanana'; kind: 'image' | 'video'; prompt?: string | null; model?: string | null; resolution?: number | null; duration?: number | null; expand_prompt?: number | null; source_url?: string | null; resource_url: string; thumb_url?: string | null; metadata?: unknown }
   const [reqOpenai, setReqOpenai] = useState<RequestItem[]>([])
   const [reqHailuo, setReqHailuo] = useState<RequestItem[]>([])
   const [creOpenai, setCreOpenai] = useState<CreationItem[]>([])
   const [creHailuo, setCreHailuo] = useState<CreationItem[]>([])
+  const [creNano, setCreNano] = useState<CreationItem[]>([])
   const [reqOpenaiOffset, setReqOpenaiOffset] = useState(0)
   const [reqHailuoOffset, setReqHailuoOffset] = useState(0)
   const [pixReq, setPixReq] = useState<Array<{ id: number; created_at: string; endpoint?: string; video_id?: number; status?: string; error_message?: string | null }>>([])
   const [pixReqOffset, setPixReqOffset] = useState(0)
   const [creOpenaiOffset, setCreOpenaiOffset] = useState(0)
   const [creHailuoOffset, setCreHailuoOffset] = useState(0)
+  const [creNanoOffset, setCreNanoOffset] = useState(0)
   const [pixCre, setPixCre] = useState<Array<{ id: number; created_at: string; prompt?: string | null; model?: string | null; duration?: number | null; quality?: string | null; motion_mode?: string | null; video_url?: string | null; thumb_url?: string | null; metadata?: unknown }>>([])
   const [pixCreOffset, setPixCreOffset] = useState(0)
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -526,6 +639,13 @@ export default function Home() {
         if (r.ok) {
           const { items } = await r.json()
           setCreHailuo(items)
+        }
+      }
+      if (piapiKey) {
+        const r = await fetch(`/api/history/creations?provider=nanobanana&offset=${creNanoOffset}&limit=10`, { headers: { 'x-user-piapi-key': piapiKey } })
+        if (r.ok) {
+          const { items } = await r.json()
+          setCreNano(items)
         }
       }
       if (pixKey) {
@@ -1063,6 +1183,66 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Nanobanana (Gemini 이미지 생성) */}
+      <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mt-6">
+        <h2 className="text-lg font-medium mb-4">Nanobanana (Gemini 이미지 생성)</h2>
+        <div className="grid gap-3">
+          <label className="text-sm text-neutral-600 dark:text-neutral-300">prompt</label>
+          <textarea rows={3} value={gemPrompt} onChange={e => setGemPrompt(e.target.value)} placeholder="예) A black lab swimming ..." className="rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 py-2 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20" />
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">output_format</label>
+              <select value={gemFormat} onChange={e => setGemFormat(e.target.value as 'jpeg'|'png')} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                <option value="jpeg">jpeg</option>
+                <option value="png">png</option>
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">aspect_ratio</label>
+              <select value={gemAR} onChange={e => setGemAR(e.target.value as typeof gemAR)} className="h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-400/20">
+                {['21:9','1:1','4:3','3:2','2:3','5:4','4:5','3:4','16:9','9:16'].map(ar => (<option key={ar} value={ar}>{ar}</option>))}
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-600 dark:text-neutral-300">image_urls (옵션)</label>
+              <div className="flex gap-2">
+                <input type="url" value={gemNewUrl} onChange={e => setGemNewUrl(e.target.value)} placeholder="https://..." className="flex-1 h-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100 px-3 outline-none" />
+                <button type="button" onClick={() => { if (gemNewUrl.trim()) { setGemImageUrls([...gemImageUrls, gemNewUrl.trim()]); setGemNewUrl('') } }} className="h-11 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700">추가</button>
+              </div>
+              {gemImageUrls.length > 0 && (
+                <ul className="mt-2 text-xs space-y-1">
+                  {gemImageUrls.map((u, i) => (
+                    <li key={`${u}-${i}`} className="flex justify-between items-center gap-2">
+                      <span className="truncate">{u}</span>
+                      <button type="button" onClick={() => setGemImageUrls(gemImageUrls.filter((_, idx) => idx !== i))} className="h-7 px-2 rounded border border-neutral-300 dark:border-neutral-700">삭제</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-1">
+            <button onClick={runGemini} disabled={gemLoading} className={`h-11 px-4 rounded-xl text-white font-medium transition-colors ${gemLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700'}`}>{gemLoading ? '생성 중...' : '이미지 생성'}</button>
+            <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">{gemStatus}</p>
+          </div>
+          {gemImages.length > 0 && (
+            <div className="mt-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {gemImages.map((src, idx) => (
+                  <img key={`${src}-${idx}`} src={src} alt="result" className="w-full rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm" />
+                ))}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <button onClick={saveCurrentGemini} disabled={gemSaved} className={`h-10 px-3 rounded-xl border text-sm ${gemSaved ? 'cursor-not-allowed opacity-60 border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}>현재 생성물 저장</button>
+                {gemSaved && (
+                  <button type="button" onClick={() => setGemSaved(false)} className="h-10 px-3 rounded-xl border border-neutral-300 dark:border-neutral-700 text-sm">비활성 해제</button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Pixverse Transition */}
       <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/60 shadow-sm backdrop-blur p-5 sm:p-6 mt-6">
         <h2 className="text-lg font-medium mb-4">Pixverse Transition (First→Last)</h2>
@@ -1343,7 +1523,7 @@ export default function Home() {
             Refresh
           </button>
         </div>
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-4">
           <div>
             <div className="text-sm font-semibold mb-2">OpenAI</div>
             <div className="grid grid-cols-3 gap-3">
@@ -1424,6 +1604,20 @@ export default function Home() {
             <div className="flex gap-2 mt-2">
               <button onClick={() => setPixCreOffset(Math.max(0, pixCreOffset - 10))} disabled={pixCreOffset === 0} className={`h-8 px-3 rounded border text-sm ${pixCreOffset === 0 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Prev</button>
               <button onClick={() => setPixCreOffset(pixCreOffset + 10)} disabled={pixCre.length < 10} className={`h-8 px-3 rounded border text-sm ${pixCre.length < 10 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Next</button>
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-semibold mb-2">Nanobanana</div>
+            <div className="grid grid-cols-3 gap-3">
+              {creNano.map(c => (
+                <button key={`cn-${c.id}`} onClick={() => setModal(c)} className="group aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800">
+                  <img src={c.thumb_url || c.resource_url} alt="thumb" className="w-full h-full object-cover group-hover:opacity-90" />
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => setCreNanoOffset(Math.max(0, creNanoOffset - 10))} disabled={creNanoOffset === 0} className={`h-8 px-3 rounded border text-sm ${creNanoOffset === 0 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Prev</button>
+              <button onClick={() => setCreNanoOffset(creNanoOffset + 10)} disabled={creNano.length < 10} className={`h-8 px-3 rounded border text-sm ${creNano.length < 10 ? 'opacity-60 cursor-not-allowed border-neutral-300 dark:border-neutral-700' : 'border-neutral-300 dark:border-neutral-700'}`}>Next</button>
             </div>
           </div>
         </div>
