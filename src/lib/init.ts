@@ -90,6 +90,67 @@ CREATE TABLE IF NOT EXISTS pixverse_creations (
 CREATE INDEX IF NOT EXISTS idx_pixverse_creations_key_created ON pixverse_creations(key_hash, created_at DESC);
 `)
 
+// --- Online migrations for provider CHECK expansion ---
+try {
+  const savedCreationsDef = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='saved_creations'").get() as { sql?: string } | undefined
+  if (savedCreationsDef?.sql && !savedCreationsDef.sql.includes("'nanobanana'")) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE saved_creations_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        provider TEXT CHECK(provider IN ('openai','hailuo','nanobanana','pixverse')) NOT NULL,
+        key_hash TEXT NOT NULL,
+        kind TEXT CHECK(kind IN ('image','video')) NOT NULL,
+        prompt TEXT,
+        model TEXT,
+        resolution INTEGER,
+        duration INTEGER,
+        expand_prompt INTEGER,
+        source_url TEXT,
+        resource_url TEXT NOT NULL,
+        thumb_url TEXT,
+        metadata_json TEXT
+      );
+      INSERT INTO saved_creations_new (id, created_at, provider, key_hash, kind, prompt, model, resolution, duration, expand_prompt, source_url, resource_url, thumb_url, metadata_json)
+      SELECT id, created_at, provider, key_hash, kind, prompt, model, resolution, duration, expand_prompt, source_url, resource_url, thumb_url, metadata_json FROM saved_creations;
+      DROP TABLE saved_creations;
+      ALTER TABLE saved_creations_new RENAME TO saved_creations;
+      CREATE INDEX IF NOT EXISTS idx_saved_creations_key_created ON saved_creations(key_hash, created_at DESC);
+      COMMIT;
+    `)
+  }
+} catch {}
+
+try {
+  const apiRequestsDef = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='api_requests'").get() as { sql?: string } | undefined
+  if (apiRequestsDef?.sql && !apiRequestsDef.sql.includes("'nanobanana'")) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE api_requests_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        provider TEXT CHECK(provider IN ('openai','hailuo','nanobanana')) NOT NULL,
+        key_hash TEXT NOT NULL,
+        endpoint TEXT,
+        task_id TEXT,
+        status TEXT CHECK(status IN ('pending','created','completed','failed','error')) NOT NULL,
+        error_message TEXT,
+        payload_json TEXT,
+        response_json TEXT,
+        duration_ms INTEGER
+      );
+      INSERT INTO api_requests_new (id, created_at, provider, key_hash, endpoint, task_id, status, error_message, payload_json, response_json, duration_ms)
+      SELECT id, created_at, provider, key_hash, endpoint, task_id, status, error_message, payload_json, response_json, duration_ms FROM api_requests;
+      DROP TABLE api_requests;
+      ALTER TABLE api_requests_new RENAME TO api_requests;
+      CREATE INDEX IF NOT EXISTS idx_api_requests_key_created ON api_requests(key_hash, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_api_requests_task ON api_requests(task_id);
+      COMMIT;
+    `)
+  }
+} catch {}
+
 export default db
 
 
