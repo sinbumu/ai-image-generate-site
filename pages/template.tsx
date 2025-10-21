@@ -176,16 +176,10 @@ export default function TemplateAdminPage() {
         </section>
 
         {diff && (
-          <DiffPanel diff={diff} baseUrl={baseUrl} onApplyFrames={async () => {
-            // 프레임 추가만 자동 적용 (스타일은 필드 불명확성으로 미리보기만)
-            for (const f of diff.addFrames) {
-              await createFrame(baseUrl, { frameName: f.name, event: f.event, sampleImageUrl: f.sampleImageUrl })
-            }
-            setLoading(true)
+          <DiffPanel diff={diff} baseUrl={baseUrl} onApplyFrameAdd={async (frame) => {
+            await createFrame(baseUrl, { frameName: frame.name, event: frame.event, sampleImageUrl: frame.sampleImageUrl, order: frame.order ?? 0 })
             const refreshed = await getAllTemplates(baseUrl)
             setData(refreshed)
-            setDiff(null)
-            setLoading(false)
           }} onApplyStyleAdd={async (frameName, styleName) => {
             try {
               const devFrame = devSnapshot?.find((f) => f.name === frameName)
@@ -234,6 +228,30 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         </ol>
         <div style={{ marginTop: 8 }}>
           <small>TIP: 변경 전 페이지 새로고침을 통해 최신 데이터를 다시 받아 충돌을 줄이세요.</small>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FrameOrderModal({ currentOrder, onClose, onConfirm }: { currentOrder: number; onClose: () => void; onConfirm: (value: number) => void }) {
+  const [value, setValue] = useState<number>(currentOrder)
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'grid', placeItems: 'center', zIndex: 1000 }}>
+      <div style={{ ...ui.card, width: 360 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>프레임 order 변경</h3>
+          <button style={ui.buttonGhost} onClick={onClose}>닫기</button>
+        </div>
+        <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+          <label style={ui.label}>
+            <span>order</span>
+            <input style={{ ...ui.input, width: 140 }} type="number" value={value} onChange={(e) => setValue(Number(e.target.value || 0))} />
+          </label>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button style={ui.buttonGhost} onClick={onClose}>취소</button>
+            <button style={ui.button} onClick={() => onConfirm(value)}>적용</button>
+          </div>
         </div>
       </div>
     </div>
@@ -294,7 +312,50 @@ function FrameCreator({ baseUrl, onCreated }: { baseUrl: string; onCreated: () =
   )
 }
 
-function DiffPanel({ diff, baseUrl, onApplyFrames, onApplyStyleAdd, onApplyStyleRemove }: { diff: FrameDiff; baseUrl: string; onApplyFrames: () => void; onApplyStyleAdd: (frameName: string, styleName: string) => void; onApplyStyleRemove: (frameName: string, styleName: string) => void }) {
+function DiffPanel({ diff, baseUrl, onApplyFrameAdd, onApplyStyleAdd, onApplyStyleRemove }: { diff: FrameDiff; baseUrl: string; onApplyFrameAdd: (frame: AiFrameTemplate) => void; onApplyStyleAdd: (frameName: string, styleName: string) => void; onApplyStyleRemove: (frameName: string, styleName: string) => void }) {
+  const [busyFrames, setBusyFrames] = useState<Record<string, boolean>>({})
+  const [doneFrames, setDoneFrames] = useState<Record<string, boolean>>({})
+  const [busyStyles, setBusyStyles] = useState<Record<string, boolean>>({})
+  const [doneStyles, setDoneStyles] = useState<Record<string, boolean>>({})
+
+  const makeStyleKey = (frame: string, style: string) => `${frame}::${style}`
+
+  async function handleFrameAdd(f: AiFrameTemplate) {
+    const key = f.name
+    if (busyFrames[key] || doneFrames[key]) return
+    setBusyFrames((m) => ({ ...m, [key]: true }))
+    try {
+      await onApplyFrameAdd(f)
+      setDoneFrames((m) => ({ ...m, [key]: true }))
+    } finally {
+      setBusyFrames((m) => ({ ...m, [key]: false }))
+    }
+  }
+
+  async function handleStyleAdd(frame: string, style: string) {
+    const key = makeStyleKey(frame, style)
+    if (busyStyles[key] || doneStyles[key]) return
+    setBusyStyles((m) => ({ ...m, [key]: true }))
+    try {
+      await onApplyStyleAdd(frame, style)
+      setDoneStyles((m) => ({ ...m, [key]: true }))
+    } finally {
+      setBusyStyles((m) => ({ ...m, [key]: false }))
+    }
+  }
+
+  async function handleStyleRemove(frame: string, style: string) {
+    const key = makeStyleKey(frame, style)
+    if (busyStyles[key] || doneStyles[key]) return
+    setBusyStyles((m) => ({ ...m, [key]: true }))
+    try {
+      await onApplyStyleRemove(frame, style)
+      setDoneStyles((m) => ({ ...m, [key]: true }))
+    } finally {
+      setBusyStyles((m) => ({ ...m, [key]: false }))
+    }
+  }
+
   return (
     <div style={ui.card}>
       <h3 style={{ marginTop: 0 }}>dev→prod 계획 미리보기</h3>
@@ -312,9 +373,19 @@ function DiffPanel({ diff, baseUrl, onApplyFrames, onApplyStyleAdd, onApplyStyle
             <div>
               <strong>프레임 추가</strong>
               <ul>
-                {diff.addFrames.map((f) => (<li key={`af-${f.name}`}>{f.name}</li>))}
+                {diff.addFrames.map((f) => (
+                  <li key={`af-${f.name}`}>
+                    {f.name}
+                    <button
+                      style={{ ...ui.button, marginLeft: 8, opacity: doneFrames[f.name] ? 0.6 : 1 }}
+                      disabled={!!busyFrames[f.name] || !!doneFrames[f.name]}
+                      onClick={() => handleFrameAdd(f)}
+                    >
+                      {busyFrames[f.name] ? '적용 중…' : (doneFrames[f.name] ? '적용됨' : '추가 적용')}
+                    </button>
+                  </li>
+                ))}
               </ul>
-              <button style={ui.button} onClick={onApplyFrames}>프레임 추가 자동 적용</button>
             </div>
           )}
           {diff.removeFrames.length > 0 && (
@@ -332,7 +403,13 @@ function DiffPanel({ diff, baseUrl, onApplyFrames, onApplyStyleAdd, onApplyStyle
                 {diff.styleAdditions.map((s, i) => (
                   <li key={`sa-${s.frame}-${s.style.name}-${i}`}>
                     {s.frame} / {s.style.name}
-                    <button style={{ ...ui.button, marginLeft: 8 }} onClick={() => onApplyStyleAdd(s.frame, s.style.name)}>이 스타일 생성(단순 업서트)</button>
+                    <button
+                      style={{ ...ui.button, marginLeft: 8, opacity: doneStyles[makeStyleKey(s.frame, s.style.name)] ? 0.6 : 1 }}
+                      disabled={!!busyStyles[makeStyleKey(s.frame, s.style.name)] || !!doneStyles[makeStyleKey(s.frame, s.style.name)]}
+                      onClick={() => handleStyleAdd(s.frame, s.style.name)}
+                    >
+                      {busyStyles[makeStyleKey(s.frame, s.style.name)] ? '적용 중…' : (doneStyles[makeStyleKey(s.frame, s.style.name)] ? '적용됨' : '업서트')}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -345,7 +422,13 @@ function DiffPanel({ diff, baseUrl, onApplyFrames, onApplyStyleAdd, onApplyStyle
                 {diff.styleRemovals.map((s, i) => (
                   <li key={`sr-${s.frame}-${s.style.name}-${i}`}>
                     {s.frame} / {s.style.name}
-                    <button style={{ ...ui.buttonGhost, marginLeft: 8 }} onClick={() => onApplyStyleRemove(s.frame, s.style.name)}>이 스타일 삭제</button>
+                    <button
+                      style={{ ...ui.buttonGhost, marginLeft: 8, opacity: doneStyles[makeStyleKey(s.frame, s.style.name)] ? 0.6 : 1 }}
+                      disabled={!!busyStyles[makeStyleKey(s.frame, s.style.name)] || !!doneStyles[makeStyleKey(s.frame, s.style.name)]}
+                      onClick={() => handleStyleRemove(s.frame, s.style.name)}
+                    >
+                      {busyStyles[makeStyleKey(s.frame, s.style.name)] ? '삭제 중…' : (doneStyles[makeStyleKey(s.frame, s.style.name)] ? '삭제됨' : '삭제')}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -358,7 +441,13 @@ function DiffPanel({ diff, baseUrl, onApplyFrames, onApplyStyleAdd, onApplyStyle
                 {diff.styleChanges.map((c, i) => (
                   <li key={`sc-${c.frame}-${c.styleName}-${i}`}>
                     {c.frame} / {c.styleName} → {c.changedFields.join(', ')}
-                    <button style={{ ...ui.button, marginLeft: 8 }} onClick={() => onApplyStyleAdd(c.frame, c.styleName)}>변경 내용 반영(단순 업서트)</button>
+                    <button
+                      style={{ ...ui.button, marginLeft: 8, opacity: doneStyles[makeStyleKey(c.frame, c.styleName)] ? 0.6 : 1 }}
+                      disabled={!!busyStyles[makeStyleKey(c.frame, c.styleName)] || !!doneStyles[makeStyleKey(c.frame, c.styleName)]}
+                      onClick={() => handleStyleAdd(c.frame, c.styleName)}
+                    >
+                      {busyStyles[makeStyleKey(c.frame, c.styleName)] ? '업서트 중…' : (doneStyles[makeStyleKey(c.frame, c.styleName)] ? '적용됨' : '업서트')}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -372,6 +461,7 @@ function DiffPanel({ diff, baseUrl, onApplyFrames, onApplyStyleAdd, onApplyStyle
 
 function FrameCard({ frame, baseUrl, env, onChanged }: { frame: AiFrameTemplate; baseUrl: string; env: EnvType; onChanged: () => void }) {
   const [busy, setBusy] = useState(false)
+  const [showOrderModal, setShowOrderModal] = useState(false)
 
   async function handleDeleteFrame() {
     if (!confirm(`${frame.name} 프레임을 삭제할까요? (스타일까지 함께 삭제)`)) return
@@ -394,6 +484,7 @@ function FrameCard({ frame, baseUrl, env, onChanged }: { frame: AiFrameTemplate;
         {frame.event && <span style={{ color: '#2962ff' }}>event</span>}
         {!frame.available && <span style={{ color: '#b00020' }}>unavailable</span>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button style={ui.buttonGhost} onClick={() => setShowOrderModal(true)}>order 변경</button>
           <button style={ui.buttonGhost} onClick={handleDeleteFrame} disabled={busy}>프레임 삭제</button>
         </div>
       </div>
@@ -401,6 +492,24 @@ function FrameCard({ frame, baseUrl, env, onChanged }: { frame: AiFrameTemplate;
         <img src={frame.sampleImageUrl} alt={`${frame.name} 샘플`} style={{ maxHeight: 120 }} />
       </div>
       <StyleTable frameName={frame.name} styles={frame.styleList} baseUrl={baseUrl} onChanged={onChanged} />
+      {showOrderModal && (
+        <FrameOrderModal
+          currentOrder={frame.order || 0}
+          onClose={() => setShowOrderModal(false)}
+          onConfirm={async (value) => {
+            setBusy(true)
+            try {
+              await createFrame(baseUrl, { frameName: frame.name, event: frame.event, sampleImageUrl: frame.sampleImageUrl, order: value })
+              onChanged()
+            } catch (e) {
+              alert((e as Error).message)
+            } finally {
+              setBusy(false)
+              setShowOrderModal(false)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
