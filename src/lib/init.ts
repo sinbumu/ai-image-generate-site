@@ -14,7 +14,7 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS api_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  provider TEXT CHECK(provider IN ('openai','hailuo')) NOT NULL,
+  provider TEXT CHECK(provider IN ('openai','hailuo','nanobanana')) NOT NULL,
   key_hash TEXT NOT NULL,
   endpoint TEXT,
   task_id TEXT,
@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_api_requests_task ON api_requests(task_id);
 CREATE TABLE IF NOT EXISTS saved_creations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  provider TEXT CHECK(provider IN ('openai','hailuo')) NOT NULL,
+  provider TEXT CHECK(provider IN ('openai','hailuo','nanobanana','pixverse')) NOT NULL,
   key_hash TEXT NOT NULL,
   kind TEXT CHECK(kind IN ('image','video')) NOT NULL,
   prompt TEXT,

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { hashUserKey } from '@/lib/hash'
 
 const BodySchema = z.object({
-  provider: z.enum(['openai', 'hailuo']),
+  provider: z.enum(['openai', 'hailuo', 'nanobanana', 'pixverse']),
   kind: z.enum(['image', 'video']),
   prompt: z.string().optional(),
   model: z.string().optional(),
