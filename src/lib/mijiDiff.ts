@@ -76,7 +76,7 @@ export function computeDiff(dev: AiFrameTemplate[], prod: AiFrameTemplate[]): Fr
 export function buildGptHailuoFromDev(
   frameName: string,
   devStyle: TemplateStyle
-): Pick<UpsertStyleParams, 'frameName' | 'styleName' | 'styleType' | 'imageUploadInfoType' | 'styleImageUrl' | 'styleVideoUrl' | 'displayPrompt' | 'gptPromptList' | 'gptSampleImageUrlList' | 'hailuoPromptList'> {
+): Pick<UpsertStyleParams, 'frameName' | 'styleName' | 'styleType' | 'imageUploadInfoType' | 'styleImageUrl' | 'styleVideoUrl' | 'displayPrompt' | 'gptPromptList' | 'gptSampleImageUrlList' | 'hailuoPromptList' | 'order'> {
   const display = devStyle.displayPrompt || ''
   const guessedPrompts = display
     ? display
@@ -104,6 +104,7 @@ export function buildGptHailuoFromDev(
     gptPromptList: guessedPrompts,
     gptSampleImageUrlList: sampleList,
     hailuoPromptList: hailuoList,
+    order: devStyle.order ?? 0,
   }
 }
 

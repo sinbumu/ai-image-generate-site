@@ -92,6 +92,8 @@ export default function TemplateAdminPage() {
   const [devSnapshot, setDevSnapshot] = useState<AiFrameTemplate[] | null>(null)
   const [diff, setDiff] = useState<FrameDiff | null>(null)
   const [showHelp, setShowHelp] = useState(false)
+  const [toast, setToast] = useState<string>('')
+  const [toastVisible, setToastVisible] = useState(false)
 
   useEffect(() => {
     const dev = process.env.NEXT_PUBLIC_MIJi_DEV_BASE || process.env.NEXT_PUBLIC_MIIJ_DEV_BASE || ''
@@ -117,6 +119,12 @@ export default function TemplateAdminPage() {
     } catch {}
   }, [])
 
+  function notify(message: string) {
+    setToast(message)
+    setToastVisible(true)
+    window.setTimeout(() => setToastVisible(false), 2000)
+  }
+
   return (
     <>
       <Head>
@@ -139,14 +147,14 @@ export default function TemplateAdminPage() {
         </header>
 
         <section style={{ marginBottom: 16 }}>
-          <FrameCreator baseUrl={baseUrl} onCreated={() => {
+          <FrameCreator baseUrl={baseUrl} onToast={notify} onCreated={() => {
             setLoading(true)
             getAllTemplates(baseUrl).then(setData).finally(() => setLoading(false))
           }} />
         </section>
 
         <section style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
-          <button style={ui.button} onClick={() => { setDevSnapshot(data); try { localStorage.setItem('miji_dev_snapshot', JSON.stringify(data)) } catch {} }}>dev 스냅샷 저장</button>
+          <button style={ui.button} onClick={() => { setDevSnapshot(data); try { localStorage.setItem('miji_dev_snapshot', JSON.stringify(data)) } catch {}; notify('dev 스냅샷 저장됨') }}>dev 스냅샷 저장</button>
           <button style={ui.button} onClick={() => {
             if (!devSnapshot) {
               alert('먼저 dev 스냅샷을 저장하세요')
@@ -158,6 +166,7 @@ export default function TemplateAdminPage() {
             }
             const d = computeDiff(devSnapshot, data)
             setDiff(d)
+            notify('스냅샷과 PROD 비교 완료')
           }}>스냅샷과 PROD 비교</button>
         </section>
 
@@ -180,6 +189,7 @@ export default function TemplateAdminPage() {
             await createFrame(baseUrl, { frameName: frame.name, event: frame.event, sampleImageUrl: frame.sampleImageUrl, order: frame.order ?? 0 })
             const refreshed = await getAllTemplates(baseUrl)
             setData(refreshed)
+            if (devSnapshot) setDiff(computeDiff(devSnapshot, refreshed))
           }} onApplyStyleAdd={async (frameName, styleName) => {
             try {
               const devFrame = devSnapshot?.find((f) => f.name === frameName)
@@ -189,6 +199,7 @@ export default function TemplateAdminPage() {
               await upsertStyle(baseUrl, params)
               const refreshed = await getAllTemplates(baseUrl)
               setData(refreshed)
+              if (devSnapshot) setDiff(computeDiff(devSnapshot, refreshed))
             } catch (e) {
               alert((e as Error).message)
             }
@@ -197,6 +208,7 @@ export default function TemplateAdminPage() {
               await deleteStyle(baseUrl, frameName, styleName)
               const refreshed = await getAllTemplates(baseUrl)
               setData(refreshed)
+              if (devSnapshot) setDiff(computeDiff(devSnapshot, refreshed))
             } catch (e) {
               alert((e as Error).message)
             }
@@ -205,6 +217,9 @@ export default function TemplateAdminPage() {
         {showHelp && (
           <HelpModal onClose={() => setShowHelp(false)} />)
         }
+        {toastVisible && (
+          <ToastBanner message={toast} />
+        )}
       </main>
     </>
   )
@@ -234,6 +249,16 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+function ToastBanner({ message }: { message: string }) {
+  return (
+    <div style={{ position: 'fixed', left: '50%', top: 16, transform: 'translateX(-50%)', zIndex: 1100 }}>
+      <div style={{ padding: '10px 14px', background: 'var(--card-bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 6px 20px rgba(0,0,0,0.25)' }}>
+        {message}
+      </div>
+    </div>
+  )
+}
+
 function FrameOrderModal({ currentOrder, onClose, onConfirm }: { currentOrder: number; onClose: () => void; onConfirm: (value: number) => void }) {
   const [value, setValue] = useState<number>(currentOrder)
   return (
@@ -258,7 +283,7 @@ function FrameOrderModal({ currentOrder, onClose, onConfirm }: { currentOrder: n
   )
 }
 
-function FrameCreator({ baseUrl, onCreated }: { baseUrl: string; onCreated: () => void }) {
+function FrameCreator({ baseUrl, onCreated, onToast }: { baseUrl: string; onCreated: () => void; onToast: (msg: string) => void }) {
   const [frameName, setFrameName] = useState('')
   const [event, setEvent] = useState(false)
   const [sampleImageUrl, setSampleImageUrl] = useState('')
@@ -278,6 +303,7 @@ function FrameCreator({ baseUrl, onCreated }: { baseUrl: string; onCreated: () =
       setSampleImageUrl('')
       setOrder(0)
       onCreated()
+      onToast('프레임 생성 완료')
     } catch (e) {
       alert((e as Error).message)
     } finally {
