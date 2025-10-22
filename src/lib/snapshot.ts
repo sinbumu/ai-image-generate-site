@@ -17,11 +17,11 @@ function normalizeStyle(style: TemplateStyle): TemplateStyle {
 }
 
 export function normalizeTemplates(input: AiFrameTemplate[]): AiFrameTemplate[] {
-  return (input || []).map((f) => ({
-    ...f,
-    order: (f as any).order ?? 0,
-    styleList: (f.styleList || []).map((s) => normalizeStyle(s as unknown as TemplateStyle)),
-  }))
+  return (input || []).map((f) => {
+    const nextOrder = typeof (f as unknown as { order?: unknown }).order === 'number' ? (f as unknown as { order?: number }).order : 0
+    const styles = (f.styleList || []).map((s) => normalizeStyle(s as unknown as TemplateStyle))
+    return { ...f, order: nextOrder, styleList: styles }
+  })
 }
 
 

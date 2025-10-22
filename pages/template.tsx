@@ -636,12 +636,12 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
     setStyleVideoUrl(initial.styleVideoUrl)
     setDisplayPrompt(initial.displayPrompt)
     {
-      const p = (initial as any).prompt
-      if (Array.isArray(p)) setPrompts(p.map((s: any) => String(s)))
-      else if (p) setPrompts([String(p)])
+      const p = initial.prompt
+      if (Array.isArray(p)) setPrompts(p.map((s) => String(s)))
+      else if (typeof p === 'string' && p) setPrompts([p])
       else setPrompts([])
       // styleType이 비어있고 prompt가 존재하며 GPT 전용 필드가 없으면 비-GPT로 추정
-      const hasPrompt = Array.isArray(p) ? p.length > 0 : !!p
+      const hasPrompt = Array.isArray(p) ? p.length > 0 : typeof p === 'string' && p.length > 0
       const hasGptFields = !!initial.gptPrompt || !!initial.gptSampleImageUrlList || !!initial.hailuoPrompt
       if (!initial.styleType && hasPrompt && !hasGptFields) {
         setStyleType('PIXVERSE')
