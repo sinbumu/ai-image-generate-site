@@ -186,7 +186,7 @@ export default function TemplateAdminPage() {
         </section>
 
         {diff && (
-          <DiffPanel diff={diff} baseUrl={baseUrl} onApplyFrameAdd={async (frame) => {
+          <DiffPanel diff={diff} onApplyFrameAdd={async (frame) => {
             await createFrame(baseUrl, { frameName: frame.name, event: frame.event, sampleImageUrl: frame.sampleImageUrl, order: frame.order ?? 0 })
             const refreshed = await getAllTemplates(baseUrl)
             setData(refreshed)
@@ -339,7 +339,7 @@ function FrameCreator({ baseUrl, onCreated, onToast }: { baseUrl: string; onCrea
   )
 }
 
-function DiffPanel({ diff, baseUrl, onApplyFrameAdd, onApplyStyleAdd, onApplyStyleRemove }: { diff: FrameDiff; baseUrl: string; onApplyFrameAdd: (frame: AiFrameTemplate) => void; onApplyStyleAdd: (frameName: string, styleName: string) => void; onApplyStyleRemove: (frameName: string, styleName: string) => void }) {
+function DiffPanel({ diff, onApplyFrameAdd, onApplyStyleAdd, onApplyStyleRemove }: { diff: FrameDiff; onApplyFrameAdd: (frame: AiFrameTemplate) => void; onApplyStyleAdd: (frameName: string, styleName: string) => void; onApplyStyleRemove: (frameName: string, styleName: string) => void }) {
   const [busyFrames, setBusyFrames] = useState<Record<string, boolean>>({})
   const [doneFrames, setDoneFrames] = useState<Record<string, boolean>>({})
   const [busyStyles, setBusyStyles] = useState<Record<string, boolean>>({})
