@@ -56,6 +56,10 @@ export function computeDiff(dev: AiFrameTemplate[], prod: AiFrameTemplate[]): Fr
       const b = prodStyles[sName]
       if (!b) continue
       const changed: string[] = []
+      // prompt 배열 비교
+      const aPrompt = Array.isArray((a as any).prompt) ? (a as any).prompt as string[] : (a as any).prompt ? [String((a as any).prompt)] : []
+      const bPrompt = Array.isArray((b as any).prompt) ? (b as any).prompt as string[] : (b as any).prompt ? [String((b as any).prompt)] : []
+      if (aPrompt.length !== bPrompt.length || aPrompt.some((v, i) => v !== bPrompt[i])) changed.push('prompt')
       if (a.displayPrompt !== b.displayPrompt) changed.push('displayPrompt')
       if (a.imageUploadInfoType !== b.imageUploadInfoType) changed.push('imageUploadInfoType')
       if (a.styleImageUrl !== b.styleImageUrl) changed.push('styleImageUrl')

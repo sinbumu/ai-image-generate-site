@@ -86,7 +86,10 @@ res 200
           "displayPrompt":"string",
           "imageUploadInfoType": "string",
           "order": 0,
-          "styleType": "string"
+          "styleType": "string",
+          "prompt": [
+            string
+          ],
         }
       ],
       "updatedAt": "2025-10-20T09:18:57.352Z"
@@ -117,6 +120,7 @@ imageUploadInfoType*	string
 Enum:
 [ DEFAULT, PIXEL ]
 name*	string
+order	integer($int32)
 styleImageUrl*	string
 styleVideoUrl*	string
 }]
@@ -236,7 +240,9 @@ req body
   ],
   "imageUploadInfoType": "DEFAULT",
   "order": 0,
-  "prompt": "string",
+  "prompt": [
+    "string"
+  ],
   "styleImageUrl": "string",
   "styleName": "string",
   "styleType": "GPT_HAILUO",
@@ -287,11 +293,15 @@ imageUploadInfoType*	string
 이미지 업로드 안내 문구 타입 지정
 
 Enum:
-Array [ 2 ]
+[ DEFAULT, PIXEL ]
 order	integer($int32)
-prompt	string
-PIXVERSE
+prompt	[
+PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO, HAILUO_IMAGE_TO_VIDEO
 
+string
+PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO, HAILUO_IMAGE_TO_VIDEO
+
+]
 styleImageUrl*	string
 스타일 샘플 이미지
 
@@ -302,7 +312,7 @@ styleType*	string
 스타일 종류
 
 Enum:
-[ GPT_HAILUO, PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO ]
+[ GPT_HAILUO, PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO, HAILUO_IMAGE_TO_VIDEO ]
 styleVideoUrl*	string
 스타일 샘플 비디오
 
@@ -396,3 +406,12 @@ item에 styleList.order 필드값 추가.
 
 POST  /v1/api/photo-card/template/admin/ai-frame-template/style
 order
+---
+api 변동사항 v3
+
+POST  /v1/api/photo-card/template/admin/ai-frame-template/style
+styleType enum 에 HAILUO_IMAGE_TO_VIDEO 값 추가됨. HAILUO_IMAGE_TO_VIDEO는 pixverse타입처럼 prompt만 필수 필드고 gptPromptList,gptSampleImageUrlList, hailuoPromptList등의 필드 사용하지 않음.
+prompt : String -> List<String> //프롬프트 필드가 string 에서 List<String>로 바뀌었? 다는데 서버개발자가 자기 코드 기준인듯? 배열로 바뀌었다고 보면 될듯.
+
+GET /v1/api/photo-card/template/admin/ai-frame-template
+data.styleList.prompt : String -> List<String> 위 프롬프트 변경에 따라서 GET api도 바뀜.

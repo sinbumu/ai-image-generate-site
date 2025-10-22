@@ -12,6 +12,7 @@ import {
   TemplateStyle,
 } from '../src/lib/mijiTemplateClient'
 import { computeDiff, FrameDiff, buildGptHailuoFromDev } from '../src/lib/mijiDiff'
+import { normalizeTemplates } from '../src/lib/snapshot'
 
 // 공통 UI 스타일(라이트/다크 공용 CSS 변수 사용)
 const ui = {
@@ -154,7 +155,7 @@ export default function TemplateAdminPage() {
         </section>
 
         <section style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
-          <button style={ui.button} onClick={() => { setDevSnapshot(data); try { localStorage.setItem('miji_dev_snapshot', JSON.stringify(data)) } catch {}; notify('dev 스냅샷 저장됨') }}>dev 스냅샷 저장</button>
+          <button style={ui.button} onClick={() => { const norm = normalizeTemplates(data); setDevSnapshot(norm); try { localStorage.setItem('miji_dev_snapshot', JSON.stringify(norm)) } catch {}; notify('dev 스냅샷 저장됨') }}>dev 스냅샷 저장</button>
           <button style={ui.button} onClick={() => {
             if (!devSnapshot) {
               alert('먼저 dev 스냅샷을 저장하세요')
@@ -612,14 +613,14 @@ function StyleTable({ frameName, styles, baseUrl, onChanged }: { frameName: stri
   )
 }
 
-function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { frameName: string; baseUrl: string; onSaved: () => void; initial?: { styleName: string; imageUploadInfoType: ImageUploadInfoType; styleImageUrl: string; styleVideoUrl: string; displayPrompt: string; prompt?: string; gptPrompt?: { name?: string | null; prompt: string }[]; gptSampleImageUrlList?: { imageUrl: string[]; sampleCount: number; name?: string | null }[]; hailuoPrompt?: { name?: string | null; prompt: string }[]; styleType?: StyleType; order?: number }; onCancelEdit?: () => void }) {
+function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { frameName: string; baseUrl: string; onSaved: () => void; initial?: { styleName: string; imageUploadInfoType: ImageUploadInfoType; styleImageUrl: string; styleVideoUrl: string; displayPrompt: string; prompt?: string | string[]; gptPrompt?: { name?: string | null; prompt: string }[]; gptSampleImageUrlList?: { imageUrl: string[]; sampleCount: number; name?: string | null }[]; hailuoPrompt?: { name?: string | null; prompt: string }[]; styleType?: StyleType; order?: number }; onCancelEdit?: () => void }) {
   const [styleName, setStyleName] = useState('')
   const [styleType, setStyleType] = useState<StyleType>('GPT_HAILUO')
   const [imageUploadInfoType, setImageUploadInfoType] = useState<ImageUploadInfoType>('DEFAULT')
   const [styleImageUrl, setStyleImageUrl] = useState('')
   const [styleVideoUrl, setStyleVideoUrl] = useState('')
   const [displayPrompt, setDisplayPrompt] = useState('')
-  const [prompt, setPrompt] = useState('')
+  const [prompts, setPrompts] = useState<string[]>([])
   const [gptPromptList, setGptPromptList] = useState<{ name?: string; prompt: string }[]>([])
   const [gptSampleImageUrlList, setGptSampleImageUrlList] = useState<{ name?: string; imageUrl: string[]; sampleCount: number }[]>([])
   const [hailuoPromptList, setHailuoPromptList] = useState<{ name?: string; prompt: string }[]>([])
@@ -634,16 +635,29 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
     setStyleImageUrl(initial.styleImageUrl)
     setStyleVideoUrl(initial.styleVideoUrl)
     setDisplayPrompt(initial.displayPrompt)
-    setPrompt(initial.prompt || '')
+    {
+      const p = (initial as any).prompt
+      if (Array.isArray(p)) setPrompts(p.map((s: any) => String(s)))
+      else if (p) setPrompts([String(p)])
+      else setPrompts([])
+      // styleType이 비어있고 prompt가 존재하며 GPT 전용 필드가 없으면 비-GPT로 추정
+      const hasPrompt = Array.isArray(p) ? p.length > 0 : !!p
+      const hasGptFields = !!initial.gptPrompt || !!initial.gptSampleImageUrlList || !!initial.hailuoPrompt
+      if (!initial.styleType && hasPrompt && !hasGptFields) {
+        setStyleType('PIXVERSE')
+      } else if (initial.styleType) {
+        setStyleType(initial.styleType)
+      }
+    }
     if (initial.gptPrompt) setGptPromptList(initial.gptPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
     if (initial.gptSampleImageUrlList) setGptSampleImageUrlList(initial.gptSampleImageUrlList.map((x) => ({ name: (x.name || undefined), imageUrl: x.imageUrl, sampleCount: x.sampleCount })))
     if (initial.hailuoPrompt) setHailuoPromptList(initial.hailuoPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
     setOrder(initial.order ?? 0)
-    if (initial.styleType) setStyleType(initial.styleType)
   }, [initial])
 
   const requiresGptFields = styleType === 'GPT_HAILUO'
-  const requiresPrompt = styleType === 'PIXVERSE' || styleType === 'PIXVERSE_IMAGE_TO_VIDEO'
+  const requiresPrompt = styleType === 'PIXVERSE' || styleType === 'PIXVERSE_IMAGE_TO_VIDEO' || styleType === 'HAILUO_IMAGE_TO_VIDEO'
+  const showPromptEditor = requiresPrompt || prompts.length > 0
 
   async function handleSave() {
     setBusy(true)
@@ -651,6 +665,10 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
       const gptPromptArr = gptPromptList.length ? gptPromptList.map((x) => ({ name: x.name, prompt: x.prompt })) : undefined
       const gptSampleArr = gptSampleImageUrlList.length ? gptSampleImageUrlList.map((x) => ({ name: x.name, imageUrl: x.imageUrl, sampleCount: x.sampleCount })) : undefined
       const hailuoArr = hailuoPromptList.length ? hailuoPromptList.map((x) => ({ name: x.name, prompt: x.prompt })) : undefined
+
+      const promptArray = requiresPrompt
+        ? prompts.map((s) => s.trim()).filter(Boolean)
+        : undefined
 
       await upsertStyle(baseUrl, {
         frameName,
@@ -660,7 +678,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
         styleImageUrl,
         styleVideoUrl,
         displayPrompt: displayPrompt || undefined,
-        prompt: prompt || undefined,
+        prompt: promptArray,
         gptPromptList: gptPromptArr,
         gptSampleImageUrlList: gptSampleArr,
         hailuoPromptList: hailuoArr,
@@ -689,6 +707,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
             <option value="GPT_HAILUO">GPT_HAILUO</option>
             <option value="PIXVERSE">PIXVERSE</option>
             <option value="PIXVERSE_IMAGE_TO_VIDEO">PIXVERSE_IMAGE_TO_VIDEO</option>
+            <option value="HAILUO_IMAGE_TO_VIDEO">HAILUO_IMAGE_TO_VIDEO</option>
           </select>
         </label>
         <label style={ui.label}>
@@ -712,11 +731,16 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
           <span>displayPrompt</span>
           <input style={ui.input} value={displayPrompt} onChange={(e) => setDisplayPrompt(e.target.value)} />
         </label>
-        {requiresPrompt && (
-          <label style={ui.label}>
-            <span>prompt (PIXVERSE*, I2V*)</span>
-            <textarea style={ui.textarea} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
-          </label>
+        {showPromptEditor && (
+          <KVArrayEditor
+            label="prompt[]"
+            rows={prompts}
+            onChange={setPrompts}
+            renderRow={(row: string, onRowChange) => (
+              <input style={{ ...ui.input, width: '100%' }} placeholder="prompt 항목" value={row} onChange={(e) => onRowChange(e.target.value)} />
+            )}
+            createEmpty={() => ''}
+          />
         )}
         {requiresGptFields && (
           <div style={{ display: 'grid', gap: 8 }}>

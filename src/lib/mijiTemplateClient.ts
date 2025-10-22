@@ -3,7 +3,7 @@
 export type ImageUploadInfoType = 'DEFAULT' | 'PIXEL'
 
 // 주의: 스펙의 주석에 따라 PIXVERSE_IMAGE_TO_VIDEO 도 허용
-export type StyleType = 'GPT_HAILUO' | 'PIXVERSE' | 'PIXVERSE_IMAGE_TO_VIDEO'
+export type StyleType = 'GPT_HAILUO' | 'PIXVERSE' | 'PIXVERSE_IMAGE_TO_VIDEO' | 'HAILUO_IMAGE_TO_VIDEO'
 
 export interface GptPromptDto {
   name?: string
@@ -33,7 +33,7 @@ export interface TemplateStyle {
   styleType?: StyleType
   order?: number
   // 서버 응답에 포함될 수 있는 확장 필드들 (GET 전용)
-  prompt?: string
+  prompt?: string | string[]
   gptPrompt?: { name?: string | null; prompt: string }[]
   gptSampleImageUrlList?: { imageUrl: string[]; sampleCount: number; name?: string | null }[]
   hailuoPrompt?: { name?: string | null; prompt: string }[]
@@ -78,7 +78,7 @@ export interface UpsertStyleParams {
   order?: number
   // 선택 필드
   displayPrompt?: string
-  prompt?: string
+  prompt?: string[]
   gptPromptList?: GptPromptDto[]
   gptSampleImageUrlList?: GptSampleImageDto[]
   hailuoPromptList?: HailuoPromptDto[]
@@ -115,8 +115,12 @@ function validateUpsertStyle(params: UpsertStyleParams): void {
       'gptSampleImageUrlList is required for GPT_HAILUO'
     )
     assert(!!params.hailuoPromptList && params.hailuoPromptList.length > 0, 'hailuoPromptList is required for GPT_HAILUO')
-  } else if (params.styleType === 'PIXVERSE' || params.styleType === 'PIXVERSE_IMAGE_TO_VIDEO') {
-    assert(!!params.prompt && params.prompt.trim().length > 0, 'prompt is required for PIXVERSE or PIXVERSE_IMAGE_TO_VIDEO')
+  } else if (
+    params.styleType === 'PIXVERSE' ||
+    params.styleType === 'PIXVERSE_IMAGE_TO_VIDEO' ||
+    params.styleType === 'HAILUO_IMAGE_TO_VIDEO'
+  ) {
+    assert(!!params.prompt && params.prompt.length > 0, 'prompt[] is required for PIXVERSE/PIXVERSE_IMAGE_TO_VIDEO/HAILUO_IMAGE_TO_VIDEO')
   }
 }
 
