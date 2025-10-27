@@ -3,7 +3,7 @@
 export type ImageUploadInfoType = 'DEFAULT' | 'PIXEL'
 
 // 주의: 스펙의 주석에 따라 PIXVERSE_IMAGE_TO_VIDEO 도 허용
-export type StyleType = 'GPT_HAILUO' | 'PIXVERSE' | 'PIXVERSE_IMAGE_TO_VIDEO' | 'HAILUO_IMAGE_TO_VIDEO'
+export type StyleType = 'GPT_HAILUO' | 'PIXVERSE' | 'PIXVERSE_IMAGE_TO_VIDEO' | 'HAILUO_IMAGE_TO_VIDEO' | 'NANOBANANA_PIXVERSE'
 
 export interface GptPromptDto {
   name?: string
@@ -100,9 +100,50 @@ function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message)
 }
 
+// GET 응답을 UI에서 쓰기 좋게 정규화
+// - NANOBANANA_PIXVERSE 특이 케이스: nanoBananaPrompt → gptPrompt, nanoBananaSampleImageUrlList → gptSampleImageUrlList, pixversePrompt → hailuoPrompt
+// - prompt: string | string[] 유지 (UI에서 처리), order 기본값 보정
+function normalizeGetTemplatesForUi(input: AiFrameTemplate[]): AiFrameTemplate[] {
+  return (input || []).map((t) => {
+    const nextStyleList = (t.styleList || []).map((s) => {
+      const styleUnknown = s as unknown as { [k: string]: unknown }
+      const styleType = s.styleType
+      let gptPrompt = s.gptPrompt
+      let gptSample = s.gptSampleImageUrlList
+      let hailuoPrompt = s.hailuoPrompt
+
+      if (styleType === 'NANOBANANA_PIXVERSE') {
+        const nbPrompt = styleUnknown['nanoBananaPrompt'] as { name?: string | null; prompt: string }[] | undefined
+        const nbSample = styleUnknown['nanoBananaSampleImageUrlList'] as { imageUrl: string[]; sampleCount: number; name?: string | null }[] | undefined
+        const pvPrompt = styleUnknown['pixversePrompt'] as { name?: string | null; prompt: string }[] | undefined
+        if (Array.isArray(nbPrompt)) gptPrompt = nbPrompt.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+        if (Array.isArray(nbSample)) gptSample = nbSample.map((x) => ({ imageUrl: x.imageUrl, sampleCount: x.sampleCount, name: x.name ?? undefined }))
+        if (Array.isArray(pvPrompt)) hailuoPrompt = pvPrompt.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+      }
+
+      const hasNumberOrder = typeof (s as unknown as { order?: unknown }).order === 'number'
+      const fixedOrder: number = hasNumberOrder ? ((s as unknown as { order: number }).order) : 0
+
+      return {
+        ...s,
+        gptPrompt,
+        gptSampleImageUrlList: gptSample,
+        hailuoPrompt,
+        order: fixedOrder,
+      }
+    })
+
+    const hasNumberOrder = typeof (t as unknown as { order?: unknown }).order === 'number'
+    const fixedOrder: number = hasNumberOrder ? ((t as unknown as { order: number }).order) : 0
+
+    return { ...t, order: fixedOrder, styleList: nextStyleList }
+  })
+}
+
 // styleType 별 유효성:
 // - GPT_HAILUO: gptPromptList, gptSampleImageUrlList, hailuoPromptList 필수
-// - PIXVERSE | PIXVERSE_IMAGE_TO_VIDEO: prompt 필수
+// - NANOBANANA_PIXVERSE: gptPromptList(나나바나나), hailuoPromptList(픽버스 I2V) 필수
+// - PIXVERSE | PIXVERSE_IMAGE_TO_VIDEO | HAILUO_IMAGE_TO_VIDEO: prompt[] 필수
 function validateUpsertStyle(params: UpsertStyleParams): void {
   assert(!!params.frameName, 'frameName is required')
   assert(!!params.styleName, 'styleName is required')
@@ -115,6 +156,9 @@ function validateUpsertStyle(params: UpsertStyleParams): void {
       'gptSampleImageUrlList is required for GPT_HAILUO'
     )
     assert(!!params.hailuoPromptList && params.hailuoPromptList.length > 0, 'hailuoPromptList is required for GPT_HAILUO')
+  } else if (params.styleType === 'NANOBANANA_PIXVERSE') {
+    assert(!!params.gptPromptList && params.gptPromptList.length > 0, 'gptPromptList is required for NANOBANANA_PIXVERSE')
+    assert(!!params.hailuoPromptList && params.hailuoPromptList.length > 0, 'hailuoPromptList is required for NANOBANANA_PIXVERSE')
   } else if (
     params.styleType === 'PIXVERSE' ||
     params.styleType === 'PIXVERSE_IMAGE_TO_VIDEO' ||
@@ -132,7 +176,8 @@ export async function getAllTemplates(baseUrl: string, init?: RequestInit): Prom
     throw new Error(`getAllTemplates failed: ${res.status} ${text}`)
   }
   const json = (await res.json()) as AiFrameTemplateAdminRetrieveResponseDto
-  return json.data || []
+  const data = json.data || []
+  return normalizeGetTemplatesForUi(data)
 }
 
 export async function createFrame(

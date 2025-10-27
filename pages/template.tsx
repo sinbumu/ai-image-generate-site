@@ -655,7 +655,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
     setOrder(initial.order ?? 0)
   }, [initial])
 
-  const requiresGptFields = styleType === 'GPT_HAILUO'
+  const requiresGptFields = styleType === 'GPT_HAILUO' || styleType === 'NANOBANANA_PIXVERSE'
   const requiresPrompt = styleType === 'PIXVERSE' || styleType === 'PIXVERSE_IMAGE_TO_VIDEO' || styleType === 'HAILUO_IMAGE_TO_VIDEO'
   const showPromptEditor = requiresPrompt || prompts.length > 0
 
@@ -708,6 +708,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
             <option value="PIXVERSE">PIXVERSE</option>
             <option value="PIXVERSE_IMAGE_TO_VIDEO">PIXVERSE_IMAGE_TO_VIDEO</option>
             <option value="HAILUO_IMAGE_TO_VIDEO">HAILUO_IMAGE_TO_VIDEO</option>
+            <option value="NANOBANANA_PIXVERSE">NANOBANANA_PIXVERSE</option>
           </select>
         </label>
         <label style={ui.label}>
@@ -745,7 +746,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
         {requiresGptFields && (
           <div style={{ display: 'grid', gap: 8 }}>
             <KVArrayEditor
-              label="gptPromptList"
+              label={styleType === 'NANOBANANA_PIXVERSE' ? 'NANOBANANA 입력(gptPromptList)' : 'gptPromptList'}
               rows={gptPromptList}
               onChange={setGptPromptList}
               renderRow={(row: { name?: string; prompt: string }, onRowChange) => (
@@ -770,7 +771,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
               createEmpty={() => ({ imageUrl: [], sampleCount: 1 })}
             />
             <KVArrayEditor
-              label="hailuoPromptList"
+              label={styleType === 'NANOBANANA_PIXVERSE' ? 'PIXVERSE I2V 입력(hailuoPromptList)' : 'hailuoPromptList'}
               rows={hailuoPromptList}
               onChange={setHailuoPromptList}
               renderRow={(row: { name?: string; prompt: string }, onRowChange) => (

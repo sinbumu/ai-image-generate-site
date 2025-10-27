@@ -415,3 +415,94 @@ prompt : String -> List<String> //프롬프트 필드가 string 에서 List<Stri
 
 GET /v1/api/photo-card/template/admin/ai-frame-template
 data.styleList.prompt : String -> List<String> 위 프롬프트 변경에 따라서 GET api도 바뀜.
+---
+api 변동사항 v4
+
+POST /v1/api/photo-card/template/admin/ai-frame-template/style
+styleType ->  + NANOBANANA_PIXVERSE
+GPT_HAILUO 와 같은 사양의 입력 , GPT(이미지 생성)처리 보내던 필드에 NANOBANANA 정보 넣고, HAILOU 요청용 리스트 필드에 PIXVERSE용 정보.
+---
+추가 변동사항
+위 POST 입력시엔 기존 필드명 그대로 쓰고, GET 일땐 필드명 달라짐
+{
+    "name": "테스트",
+    "event": false,
+    "sampleImageUrl": "string",
+    "keyword": [],
+    "styleList": [
+        {
+            "name": "하늘과",
+            "styleImageUrl": "string",
+            "styleVideoUrl": "string",
+            "backgroundImageUrl": "",
+            "backImageUrl": "",
+            "nanoBananaPrompt": [
+                {
+                    "prompt": "2번 이미지 처럼 배경 바꿔줘",
+                    "name": null
+                }
+            ],
+            "nanoBananaSampleImageUrlList": [
+                {
+                    "imageUrl": [
+                        "https://cccv-to.s3.ap-northeast-2.amazonaws.com/ai-media-toy/prod/1760604933432-f1sgyj-image%E1%84%82%E1%85%A1%E1%84%8B%E1%85%A1%E1%86%B7.png"
+                    ],
+                    "sampleCount": 1,
+                    "name": null
+                }
+            ],
+            "pixversePrompt": [
+                {
+                    "prompt": "앞으로 달려와서 날아차기",
+                    "name": null
+                }
+            ],
+            "displayPrompt": "별과 바람과",
+            "imageUploadInfoType": "DEFAULT",
+            "order": 0,
+            "styleType": "NANOBANANA_PIXVERSE"
+        },
+        {
+            "name": "test222",
+            "styleImageUrl": "https://cccv-to.s3.ap-northeast-2.amazonaws.com/ai-media-toy/prod/1761556379294-3j87u1-oiiaii2.webp",
+            "styleVideoUrl": "https://cccv-to.s3.ap-northeast-2.amazonaws.com/ai-media-toy/prod/1761556379294-3j87u1-oiiaii2.webp",
+            "backgroundImageUrl": "",
+            "backImageUrl": "",
+            "nanoBananaPrompt": [
+                {
+                    "prompt": "siva",
+                    "name": "siva"
+                }
+            ],
+            "nanoBananaSampleImageUrlList": [
+                {
+                    "imageUrl": [
+                        "https://cccv-to.s3.ap-northeast-2.amazonaws.com/ai-media-toy/prod/1761556379294-3j87u1-oiiaii2.webp"
+                    ],
+                    "sampleCount": 1,
+                    "name": "sss"
+                }
+            ],
+            "pixversePrompt": [
+                {
+                    "prompt": "asdfas",
+                    "name": "asdf"
+                }
+            ],
+            "displayPrompt": "dsfsadf",
+            "imageUploadInfoType": "DEFAULT",
+            "order": 0,
+            "styleType": "NANOBANANA_PIXVERSE"
+        }
+    ],
+    "available": true,
+    "order": 0,
+    "id": "68feca62be54767f0baf78da",
+    "createdAt": "2025-10-27T01:26:58.574",
+    "updatedAt": "2025-10-27T09:14:58.894",
+    "schemaVersion": "1.0",
+    "lockVersion": 3,
+    "dbId": "68feca62be54767f0baf78da"
+}
+nanoBananaPrompt, nanoBananaSampleImageUrlList, pixversePrompt
+
