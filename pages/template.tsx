@@ -745,10 +745,39 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
               rows={imageSampleImageUrlList}
               onChange={setImageSampleImageUrlList}
               renderRow={(row: { name?: string; imageUrl: string[]; sampleCount: number }, onRowChange) => (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ ...ui.input, width: 140 }} placeholder="name(옵션)" value={row.name || ''} onChange={(e) => onRowChange({ ...row, name: e.target.value || undefined })} />
-                  <input style={{ ...ui.input, flex: 1 }} placeholder="imageUrl(콤마구분)" value={row.imageUrl.join(', ')} onChange={(e) => onRowChange({ ...row, imageUrl: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })} />
-                  <input style={{ ...ui.input, width: 100 }} type="number" placeholder="sampleCount" value={row.sampleCount} onChange={(e) => onRowChange({ ...row, sampleCount: Number(e.target.value || 0) })} />
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input style={{ ...ui.input, width: 140 }} placeholder="name(옵션)" value={row.name || ''} onChange={(e) => onRowChange({ ...row, name: e.target.value || undefined })} />
+                    <input style={{ ...ui.input, width: 100 }} type="number" placeholder="sampleCount" value={row.sampleCount} onChange={(e) => onRowChange({ ...row, sampleCount: Number(e.target.value || 0) })} />
+                  </div>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {row.imageUrl.map((u, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <input
+                          style={{ ...ui.input, flex: 1 }}
+                          placeholder={`imageUrl #${idx + 1}`}
+                          value={u}
+                          onChange={(e) => {
+                            const next = row.imageUrl.slice()
+                            next[idx] = e.target.value
+                            onRowChange({ ...row, imageUrl: next })
+                          }}
+                        />
+                        <button
+                          style={ui.buttonGhost}
+                          onClick={() => {
+                            const next = row.imageUrl.slice()
+                            next.splice(idx, 1)
+                            onRowChange({ ...row, imageUrl: next })
+                          }}
+                        >삭제</button>
+                      </div>
+                    ))}
+                    <button
+                      style={ui.button}
+                      onClick={() => onRowChange({ ...row, imageUrl: [...row.imageUrl, ''] })}
+                    >URL 추가</button>
+                  </div>
                 </div>
               )}
               createEmpty={() => ({ imageUrl: [], sampleCount: 1 })}
