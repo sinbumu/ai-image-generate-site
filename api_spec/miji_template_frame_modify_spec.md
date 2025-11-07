@@ -519,3 +519,32 @@ styleType             ->  + GPT_PIXVERSE
 imageUploadInfoType -> + DOG, CAT, CAR
 
 *요약 : prompt 필드 없어짐, 그외 위 3 필드들 위처럼 이름 변경, styleType과 imageUploadInfoType은 위같은 타입값 추가
+
+---
+
+api 변동사항 v5 에 관한 GET api 추가 피드
+
+GET /v1/api/photo-card/template/admin/ai-frame-template 호출시에 POST에서 넣은 필드랑 상관없이 목록이 거지같이 옴.
+아래 참고해서 맞춰야 함....
+prompt 만 있는건 POST에서 videoPromptList 
+
+styleType GPT_HAILUO
+  imagePromptList -> gptPrompt. [{name, prompt*}]
+  imageSampleImageUrlList -> gptSampleImageUrlList. [{imageUrl*. [string], name,  sampleCount*}]
+  videoPromptList -> hailuoPrompt. [{name, prompt*}]
+styleType GPT_PIXVERSE
+  imagePromptList -> gptPrompt. [{name, prompt*}]
+  imageSampleImageUrlList -> gptSampleImageUrlList. [{imageUrl*. [string], name,  sampleCount*}]
+  videoPromptList -> pixversePrompt. [{name, prompt*}]
+styleType PIXVERSE
+  videoPromptList -> prompt  [string]
+styleType PIXVERSE_IMAGE_TO_VIDEO
+  videoPromptList -> prompt  [string]
+styleType HAILUO_IMAGE_TO_VIDEO
+  videoPromptList -> prompt  [string]
+styleType NANOBANANA_PIXVERSE
+  imagePromptList -> nanoBananaPrompt. [{name, prompt*}]
+  imageSampleImageUrlList -> nanoBananaSampleImageUrlList. [{imageUrl*. [string], name,  sampleCount*}]
+  videoPromptList -> pixversePrompt. [{name, prompt*}]
+
+---

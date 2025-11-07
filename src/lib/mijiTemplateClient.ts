@@ -112,6 +112,13 @@ function normalizeGetTemplatesForUi(input: AiFrameTemplate[]): AiFrameTemplate[]
       let gptSample = s.gptSampleImageUrlList
       let hailuoPrompt = s.hailuoPrompt
 
+      const imagePromptList = styleUnknown['imagePromptList'] as { name?: string | null; prompt: string }[] | undefined
+      const imageSampleImageUrlList = styleUnknown['imageSampleImageUrlList'] as { imageUrl: string[]; sampleCount: number; name?: string | null }[] | undefined
+      const videoPromptList = styleUnknown['videoPromptList'] as { name?: string | null; prompt: string }[] | undefined
+
+      const pixversePrompt = styleUnknown['pixversePrompt'] as { name?: string | null; prompt: string }[] | undefined
+      const promptStrList = styleUnknown['prompt'] as string[] | undefined
+
       if (styleType === 'NANOBANANA_PIXVERSE') {
         const nbPrompt = styleUnknown['nanoBananaPrompt'] as { name?: string | null; prompt: string }[] | undefined
         const nbSample = styleUnknown['nanoBananaSampleImageUrlList'] as { imageUrl: string[]; sampleCount: number; name?: string | null }[] | undefined
@@ -119,6 +126,29 @@ function normalizeGetTemplatesForUi(input: AiFrameTemplate[]): AiFrameTemplate[]
         if (Array.isArray(nbPrompt)) gptPrompt = nbPrompt.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
         if (Array.isArray(nbSample)) gptSample = nbSample.map((x) => ({ imageUrl: x.imageUrl, sampleCount: x.sampleCount, name: x.name ?? undefined }))
         if (Array.isArray(pvPrompt)) hailuoPrompt = pvPrompt.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+      } else if (styleType === 'GPT_HAILUO') {
+        // 표준 필드 유지, 보강만
+        if (!gptPrompt && Array.isArray(imagePromptList)) gptPrompt = imagePromptList.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+        if (!gptSample && Array.isArray(imageSampleImageUrlList)) gptSample = imageSampleImageUrlList.map((x) => ({ imageUrl: x.imageUrl, sampleCount: x.sampleCount, name: x.name ?? undefined }))
+        if (!hailuoPrompt && Array.isArray(videoPromptList)) hailuoPrompt = videoPromptList.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+      } else if (styleType === 'GPT_PIXVERSE') {
+        // image* → gpt*, videoPromptList/pixversePrompt → hailuoPrompt 로 수렴시켜 UI에 채움
+        if (Array.isArray(imagePromptList)) gptPrompt = imagePromptList.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+        if (Array.isArray(imageSampleImageUrlList)) gptSample = imageSampleImageUrlList.map((x) => ({ imageUrl: x.imageUrl, sampleCount: x.sampleCount, name: x.name ?? undefined }))
+        const vid = Array.isArray(pixversePrompt) ? pixversePrompt : Array.isArray(videoPromptList) ? videoPromptList : undefined
+        if (vid) hailuoPrompt = vid.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+      } else if (
+        styleType === 'PIXVERSE' ||
+        styleType === 'PIXVERSE_IMAGE_TO_VIDEO' ||
+        styleType === 'HAILUO_IMAGE_TO_VIDEO'
+      ) {
+        // prompt[string[]] → hailuoPrompt로 변환해 UI에 채움
+        if (!hailuoPrompt && Array.isArray(promptStrList)) {
+          hailuoPrompt = promptStrList.filter(Boolean).map((p) => ({ prompt: String(p) }))
+        }
+        if (!hailuoPrompt && Array.isArray(videoPromptList)) {
+          hailuoPrompt = videoPromptList.map((x) => ({ name: x.name ?? undefined, prompt: x.prompt }))
+        }
       }
 
       const hasNumberOrder = typeof (s as unknown as { order?: unknown }).order === 'number'
