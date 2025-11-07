@@ -620,10 +620,9 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
   const [styleImageUrl, setStyleImageUrl] = useState('')
   const [styleVideoUrl, setStyleVideoUrl] = useState('')
   const [displayPrompt, setDisplayPrompt] = useState('')
-  const [prompts, setPrompts] = useState<string[]>([])
-  const [gptPromptList, setGptPromptList] = useState<{ name?: string; prompt: string }[]>([])
-  const [gptSampleImageUrlList, setGptSampleImageUrlList] = useState<{ name?: string; imageUrl: string[]; sampleCount: number }[]>([])
-  const [hailuoPromptList, setHailuoPromptList] = useState<{ name?: string; prompt: string }[]>([])
+  const [imagePromptList, setImagePromptList] = useState<{ name?: string; prompt: string }[]>([])
+  const [imageSampleImageUrlList, setImageSampleImageUrlList] = useState<{ name?: string; imageUrl: string[]; sampleCount: number }[]>([])
+  const [videoPromptList, setVideoPromptList] = useState<{ name?: string; prompt: string }[]>([])
   const [order, setOrder] = useState<number>(0)
   const [busy, setBusy] = useState(false)
 
@@ -637,9 +636,6 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
     setDisplayPrompt(initial.displayPrompt)
     {
       const p = initial.prompt
-      if (Array.isArray(p)) setPrompts(p.map((s) => String(s)))
-      else if (typeof p === 'string' && p) setPrompts([p])
-      else setPrompts([])
       // styleType이 비어있고 prompt가 존재하며 GPT 전용 필드가 없으면 비-GPT로 추정
       const hasPrompt = Array.isArray(p) ? p.length > 0 : typeof p === 'string' && p.length > 0
       const hasGptFields = !!initial.gptPrompt || !!initial.gptSampleImageUrlList || !!initial.hailuoPrompt
@@ -649,26 +645,21 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
         setStyleType(initial.styleType)
       }
     }
-    if (initial.gptPrompt) setGptPromptList(initial.gptPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
-    if (initial.gptSampleImageUrlList) setGptSampleImageUrlList(initial.gptSampleImageUrlList.map((x) => ({ name: (x.name || undefined), imageUrl: x.imageUrl, sampleCount: x.sampleCount })))
-    if (initial.hailuoPrompt) setHailuoPromptList(initial.hailuoPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
+    if (initial.gptPrompt) setImagePromptList(initial.gptPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
+    if (initial.gptSampleImageUrlList) setImageSampleImageUrlList(initial.gptSampleImageUrlList.map((x) => ({ name: (x.name || undefined), imageUrl: x.imageUrl, sampleCount: x.sampleCount })))
+    if (initial.hailuoPrompt) setVideoPromptList(initial.hailuoPrompt.map((x) => ({ name: (x.name || undefined), prompt: x.prompt })))
     setOrder(initial.order ?? 0)
   }, [initial])
 
-  const requiresGptFields = styleType === 'GPT_HAILUO' || styleType === 'NANOBANANA_PIXVERSE'
-  const requiresPrompt = styleType === 'PIXVERSE' || styleType === 'PIXVERSE_IMAGE_TO_VIDEO' || styleType === 'HAILUO_IMAGE_TO_VIDEO'
-  const showPromptEditor = requiresPrompt || prompts.length > 0
+  const needsImagePrompts = styleType === 'GPT_HAILUO' || styleType === 'NANOBANANA_PIXVERSE' || styleType === 'GPT_PIXVERSE'
+  const needsVideoPrompts = styleType === 'GPT_HAILUO' || styleType === 'NANOBANANA_PIXVERSE' || styleType === 'GPT_PIXVERSE' || styleType === 'PIXVERSE' || styleType === 'PIXVERSE_IMAGE_TO_VIDEO' || styleType === 'HAILUO_IMAGE_TO_VIDEO'
 
   async function handleSave() {
     setBusy(true)
     try {
-      const gptPromptArr = gptPromptList.length ? gptPromptList.map((x) => ({ name: x.name, prompt: x.prompt })) : undefined
-      const gptSampleArr = gptSampleImageUrlList.length ? gptSampleImageUrlList.map((x) => ({ name: x.name, imageUrl: x.imageUrl, sampleCount: x.sampleCount })) : undefined
-      const hailuoArr = hailuoPromptList.length ? hailuoPromptList.map((x) => ({ name: x.name, prompt: x.prompt })) : undefined
-
-      const promptArray = requiresPrompt
-        ? prompts.map((s) => s.trim()).filter(Boolean)
-        : undefined
+      const imgPromptArr = imagePromptList.length ? imagePromptList.map((x) => ({ name: x.name, prompt: x.prompt })) : undefined
+      const imgSampleArr = imageSampleImageUrlList.length ? imageSampleImageUrlList.map((x) => ({ name: x.name, imageUrl: x.imageUrl, sampleCount: x.sampleCount })) : undefined
+      const vidPromptArr = videoPromptList.length ? videoPromptList.map((x) => ({ name: x.name, prompt: x.prompt })) : undefined
 
       await upsertStyle(baseUrl, {
         frameName,
@@ -678,10 +669,9 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
         styleImageUrl,
         styleVideoUrl,
         displayPrompt: displayPrompt || undefined,
-        prompt: promptArray,
-        gptPromptList: gptPromptArr,
-        gptSampleImageUrlList: gptSampleArr,
-        hailuoPromptList: hailuoArr,
+        imagePromptList: imgPromptArr,
+        imageSampleImageUrlList: imgSampleArr,
+        videoPromptList: vidPromptArr,
         order,
       })
       onSaved()
@@ -709,6 +699,7 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
             <option value="PIXVERSE_IMAGE_TO_VIDEO">PIXVERSE_IMAGE_TO_VIDEO</option>
             <option value="HAILUO_IMAGE_TO_VIDEO">HAILUO_IMAGE_TO_VIDEO</option>
             <option value="NANOBANANA_PIXVERSE">NANOBANANA_PIXVERSE</option>
+            <option value="GPT_PIXVERSE">GPT_PIXVERSE</option>
           </select>
         </label>
         <label style={ui.label}>
@@ -716,6 +707,9 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
           <select style={ui.select} value={imageUploadInfoType} onChange={(e) => setImageUploadInfoType(e.target.value as ImageUploadInfoType)}>
             <option value="DEFAULT">DEFAULT</option>
             <option value="PIXEL">PIXEL</option>
+            <option value="DOG">DOG</option>
+            <option value="CAT">CAT</option>
+            <option value="CAR">CAR</option>
           </select>
         </label>
         <label style={ui.label}>
@@ -732,23 +726,12 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
           <span>displayPrompt</span>
           <input style={ui.input} value={displayPrompt} onChange={(e) => setDisplayPrompt(e.target.value)} />
         </label>
-        {showPromptEditor && (
-          <KVArrayEditor
-            label="prompt[]"
-            rows={prompts}
-            onChange={setPrompts}
-            renderRow={(row: string, onRowChange) => (
-              <input style={{ ...ui.input, width: '100%' }} placeholder="prompt 항목" value={row} onChange={(e) => onRowChange(e.target.value)} />
-            )}
-            createEmpty={() => ''}
-          />
-        )}
-        {requiresGptFields && (
+        {needsImagePrompts && (
           <div style={{ display: 'grid', gap: 8 }}>
             <KVArrayEditor
-              label={styleType === 'NANOBANANA_PIXVERSE' ? 'NANOBANANA 입력(gptPromptList)' : 'gptPromptList'}
-              rows={gptPromptList}
-              onChange={setGptPromptList}
+              label={styleType === 'NANOBANANA_PIXVERSE' ? 'NANOBANANA 입력(imagePromptList)' : 'imagePromptList'}
+              rows={imagePromptList}
+              onChange={setImagePromptList}
               renderRow={(row: { name?: string; prompt: string }, onRowChange) => (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input style={{ ...ui.input, width: 140 }} placeholder="name(옵션)" value={row.name || ''} onChange={(e) => onRowChange({ ...row, name: e.target.value || undefined })} />
@@ -758,9 +741,9 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
               createEmpty={() => ({ name: undefined, prompt: '' })}
             />
             <KVArrayEditor
-              label="gptSampleImageUrlList"
-              rows={gptSampleImageUrlList}
-              onChange={setGptSampleImageUrlList}
+              label="imageSampleImageUrlList"
+              rows={imageSampleImageUrlList}
+              onChange={setImageSampleImageUrlList}
               renderRow={(row: { name?: string; imageUrl: string[]; sampleCount: number }, onRowChange) => (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input style={{ ...ui.input, width: 140 }} placeholder="name(옵션)" value={row.name || ''} onChange={(e) => onRowChange({ ...row, name: e.target.value || undefined })} />
@@ -770,19 +753,21 @@ function StyleEditor({ frameName, baseUrl, onSaved, initial, onCancelEdit }: { f
               )}
               createEmpty={() => ({ imageUrl: [], sampleCount: 1 })}
             />
-            <KVArrayEditor
-              label={styleType === 'NANOBANANA_PIXVERSE' ? 'PIXVERSE I2V 입력(hailuoPromptList)' : 'hailuoPromptList'}
-              rows={hailuoPromptList}
-              onChange={setHailuoPromptList}
-              renderRow={(row: { name?: string; prompt: string }, onRowChange) => (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ ...ui.input, width: 140 }} placeholder="name(옵션)" value={row.name || ''} onChange={(e) => onRowChange({ ...row, name: e.target.value || undefined })} />
-                  <input style={{ ...ui.input, flex: 1 }} placeholder="prompt" value={row.prompt} onChange={(e) => onRowChange({ ...row, prompt: e.target.value })} />
-                </div>
-              )}
-              createEmpty={() => ({ name: undefined, prompt: '' })}
-            />
           </div>
+        )}
+        {needsVideoPrompts && (
+          <KVArrayEditor
+            label="videoPromptList"
+            rows={videoPromptList}
+            onChange={setVideoPromptList}
+            renderRow={(row: { name?: string; prompt: string }, onRowChange) => (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input style={{ ...ui.input, width: 140 }} placeholder="name(옵션)" value={row.name || ''} onChange={(e) => onRowChange({ ...row, name: e.target.value || undefined })} />
+                <input style={{ ...ui.input, flex: 1 }} placeholder="prompt" value={row.prompt} onChange={(e) => onRowChange({ ...row, prompt: e.target.value })} />
+              </div>
+            )}
+            createEmpty={() => ({ name: undefined, prompt: '' })}
+          />
         )}
         <label style={ui.label}>
           <span>order</span>

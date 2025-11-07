@@ -293,7 +293,7 @@ imageUploadInfoType*	string
 이미지 업로드 안내 문구 타입 지정
 
 Enum:
-[ DEFAULT, PIXEL ]
+[ DEFAULT, PIXEL, DOG, CAT, CAR ]
 order	integer($int32)
 prompt	[
 PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO, HAILUO_IMAGE_TO_VIDEO
@@ -312,7 +312,7 @@ styleType*	string
 스타일 종류
 
 Enum:
-[ GPT_HAILUO, PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO, HAILUO_IMAGE_TO_VIDEO ]
+[ GPT_HAILUO, PIXVERSE, PIXVERSE_IMAGE_TO_VIDEO, HAILUO_IMAGE_TO_VIDEO, NANOBANANA_PIXVERSE ]
 styleVideoUrl*	string
 스타일 샘플 비디오
 
@@ -506,3 +506,16 @@ GPT_HAILUO 와 같은 사양의 입력 , GPT(이미지 생성)처리 보내던 �
 }
 nanoBananaPrompt, nanoBananaSampleImageUrlList, pixversePrompt
 
+---
+
+api 변동사항 v5
+
+POST /v1/api/photo-card/template/admin/ai-frame-template/style
+포토카드 스타일 추가/업데이트
+hailuoPromptList, prompt -> videoPromptList (통합)
+gptPromptList                    -> imagePromptList
+gptSampleImageUrlList.    -> imageSampleImageUrlList
+styleType             ->  + GPT_PIXVERSE
+imageUploadInfoType -> + DOG, CAT, CAR
+
+*요약 : prompt 필드 없어짐, 그외 위 3 필드들 위처럼 이름 변경, styleType과 imageUploadInfoType은 위같은 타입값 추가

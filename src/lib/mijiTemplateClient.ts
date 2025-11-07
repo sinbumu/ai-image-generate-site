@@ -1,9 +1,9 @@
 // 타입 정의와 API 래퍼: miji 템플릿/스타일 어드민 연동
 
-export type ImageUploadInfoType = 'DEFAULT' | 'PIXEL'
+export type ImageUploadInfoType = 'DEFAULT' | 'PIXEL' | 'DOG' | 'CAT' | 'CAR'
 
 // 주의: 스펙의 주석에 따라 PIXVERSE_IMAGE_TO_VIDEO 도 허용
-export type StyleType = 'GPT_HAILUO' | 'PIXVERSE' | 'PIXVERSE_IMAGE_TO_VIDEO' | 'HAILUO_IMAGE_TO_VIDEO' | 'NANOBANANA_PIXVERSE'
+export type StyleType = 'GPT_HAILUO' | 'PIXVERSE' | 'PIXVERSE_IMAGE_TO_VIDEO' | 'HAILUO_IMAGE_TO_VIDEO' | 'NANOBANANA_PIXVERSE' | 'GPT_PIXVERSE'
 
 export interface GptPromptDto {
   name?: string
@@ -78,10 +78,10 @@ export interface UpsertStyleParams {
   order?: number
   // 선택 필드
   displayPrompt?: string
-  prompt?: string[]
-  gptPromptList?: GptPromptDto[]
-  gptSampleImageUrlList?: GptSampleImageDto[]
-  hailuoPromptList?: HailuoPromptDto[]
+  // v5: 필드 정리 - 이미지/비디오 프롬프트로 통합
+  imagePromptList?: GptPromptDto[]
+  imageSampleImageUrlList?: GptSampleImageDto[]
+  videoPromptList?: HailuoPromptDto[]
 }
 
 type JsonHeaders = { [key: string]: string }
@@ -140,31 +140,32 @@ function normalizeGetTemplatesForUi(input: AiFrameTemplate[]): AiFrameTemplate[]
   })
 }
 
-// styleType 별 유효성:
-// - GPT_HAILUO: gptPromptList, gptSampleImageUrlList, hailuoPromptList 필수
-// - NANOBANANA_PIXVERSE: gptPromptList(나나바나나), hailuoPromptList(픽버스 I2V) 필수
-// - PIXVERSE | PIXVERSE_IMAGE_TO_VIDEO | HAILUO_IMAGE_TO_VIDEO: prompt[] 필수
+// styleType 별 유효성 (POST v5):
+// - GPT_HAILUO: imagePromptList, imageSampleImageUrlList, videoPromptList 필수
+// - NANOBANANA_PIXVERSE: imagePromptList, videoPromptList 필수
+// - GPT_PIXVERSE: imagePromptList, videoPromptList 필수
+// - PIXVERSE | PIXVERSE_IMAGE_TO_VIDEO | HAILUO_IMAGE_TO_VIDEO: videoPromptList 필수
 function validateUpsertStyle(params: UpsertStyleParams): void {
   assert(!!params.frameName, 'frameName is required')
   assert(!!params.styleName, 'styleName is required')
   assert(!!params.styleImageUrl, 'styleImageUrl is required')
   assert(!!params.styleVideoUrl, 'styleVideoUrl is required')
   if (params.styleType === 'GPT_HAILUO') {
-    assert(!!params.gptPromptList && params.gptPromptList.length > 0, 'gptPromptList is required for GPT_HAILUO')
+    assert(!!params.imagePromptList && params.imagePromptList.length > 0, 'imagePromptList is required for GPT_HAILUO')
     assert(
-      !!params.gptSampleImageUrlList && params.gptSampleImageUrlList.length > 0,
-      'gptSampleImageUrlList is required for GPT_HAILUO'
+      !!params.imageSampleImageUrlList && params.imageSampleImageUrlList.length > 0,
+      'imageSampleImageUrlList is required for GPT_HAILUO'
     )
-    assert(!!params.hailuoPromptList && params.hailuoPromptList.length > 0, 'hailuoPromptList is required for GPT_HAILUO')
-  } else if (params.styleType === 'NANOBANANA_PIXVERSE') {
-    assert(!!params.gptPromptList && params.gptPromptList.length > 0, 'gptPromptList is required for NANOBANANA_PIXVERSE')
-    assert(!!params.hailuoPromptList && params.hailuoPromptList.length > 0, 'hailuoPromptList is required for NANOBANANA_PIXVERSE')
+    assert(!!params.videoPromptList && params.videoPromptList.length > 0, 'videoPromptList is required for GPT_HAILUO')
+  } else if (params.styleType === 'NANOBANANA_PIXVERSE' || params.styleType === 'GPT_PIXVERSE') {
+    assert(!!params.imagePromptList && params.imagePromptList.length > 0, 'imagePromptList is required')
+    assert(!!params.videoPromptList && params.videoPromptList.length > 0, 'videoPromptList is required')
   } else if (
     params.styleType === 'PIXVERSE' ||
     params.styleType === 'PIXVERSE_IMAGE_TO_VIDEO' ||
     params.styleType === 'HAILUO_IMAGE_TO_VIDEO'
   ) {
-    assert(!!params.prompt && params.prompt.length > 0, 'prompt[] is required for PIXVERSE/PIXVERSE_IMAGE_TO_VIDEO/HAILUO_IMAGE_TO_VIDEO')
+    assert(!!params.videoPromptList && params.videoPromptList.length > 0, 'videoPromptList is required for *VERSE types')
   }
 }
 
@@ -236,11 +237,10 @@ export async function upsertStyle(
   const body = {
     displayPrompt: params.displayPrompt,
     frameName: params.frameName,
-    gptPromptList: params.gptPromptList,
-    gptSampleImageUrlList: params.gptSampleImageUrlList,
-    hailuoPromptList: params.hailuoPromptList,
+    imagePromptList: params.imagePromptList,
+    imageSampleImageUrlList: params.imageSampleImageUrlList,
+    videoPromptList: params.videoPromptList,
     imageUploadInfoType: params.imageUploadInfoType,
-    prompt: params.prompt,
     styleImageUrl: params.styleImageUrl,
     styleName: params.styleName,
     styleType: params.styleType,
